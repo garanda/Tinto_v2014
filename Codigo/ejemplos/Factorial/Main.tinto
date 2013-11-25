@@ -1,0 +1,21 @@
+
+import Console;
+
+library Main {
+
+  void Main() {
+    int a=5;
+    int f=factorial(a);
+    Console.print(a);
+    Console.print('!');
+    Console.print('=');
+    Console.print(' ');
+    Console.print(f);
+  }
+
+  int factorial(int a) {
+    if(a == 1) return 1;
+    int c = factorial(a-1);
+    return a*c;
+  }
+}

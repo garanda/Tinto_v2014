@@ -1,0 +1,13 @@
+
+library Main {
+
+  void Main() {
+    boolean a = true;
+	boolean b = false;
+	boolean c = false&&a;
+	boolean d = true||b;
+	
+
+  }
+  
+}

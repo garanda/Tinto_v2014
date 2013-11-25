@@ -1,0 +1,15 @@
+
+import Console;
+
+library Main {
+
+  void Main() {
+    boolean a = true;
+	boolean b = false;
+	boolean c = true&&false;
+	boolean d = true||false;
+	
+
+  }
+  
+}

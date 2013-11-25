@@ -1,0 +1,19 @@
+
+import Console;
+
+library Main {
+
+  void Main() {
+    Console.print('H');
+    Console.print('o');
+    Console.print('l');
+    Console.print('a');
+    Console.print(' ');
+    Console.print('m');
+    Console.print('u');
+    Console.print('n');
+    Console.print('d');
+    Console.print('o');
+    Console.print('\n');
+  }
+}

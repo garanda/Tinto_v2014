@@ -1,0 +1,1 @@
+dot -Tpng -O original.dot

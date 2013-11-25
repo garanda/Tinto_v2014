@@ -1,0 +1,1714 @@
+options {
+  STATIC=false;
+}
+PARSER_BEGIN(TintoParser)
+//------------------------------------------------------------------//
+//                        COPYRIGHT NOTICE                          //
+//------------------------------------------------------------------//
+// Copyright (c) 2008, Francisco José Moreno Velo                   //
+// All rights reserved.                                             //
+//                                                                  //
+// Redistribution and use in source and binary forms, with or       //
+// without modification, are permitted provided that the following  //
+// conditions are met:                                              //
+//                                                                  //
+// * Redistributions of source code must retain the above copyright //
+//   notice, this list of conditions and the following disclaimer.  // 
+//                                                                  //
+// * Redistributions in binary form must reproduce the above        // 
+//   copyright notice, this list of conditions and the following    // 
+//   disclaimer in the documentation and/or other materials         // 
+//   provided with the distribution.                                //
+//                                                                  //
+// * Neither the name of the University of Huelva nor the names of  //
+//   its contributors may be used to endorse or promote products    //
+//   derived from this software without specific prior written      // 
+//   permission.                                                    //
+//                                                                  //
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND           // 
+// CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,      // 
+// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF         // 
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE         // 
+// DISCLAIMED. IN NO EVENT SHALL THE COPRIGHT OWNER OR CONTRIBUTORS //
+// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,         // 
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED  //
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,    //
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND   // 
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT          //
+// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING   //
+// IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF   //
+// THE POSSIBILITY OF SUCH DAMAGE.                                  //
+//------------------------------------------------------------------//
+
+//------------------------------------------------------------------//
+//                      Universidad de Huelva                       //
+//          Departamento de Tecnologías de la Información           //
+//   Área de Ciencias de la Computación e Inteligencia Artificial   //
+//------------------------------------------------------------------//
+//                     PROCESADORES DE LENGUAJE                     //
+//------------------------------------------------------------------//
+//                                                                  //
+//          Compilador del lenguaje Tinto [Versión 0.1]             //
+//                                                                  //
+//------------------------------------------------------------------//
+
+package tinto.parser;
+
+import tinto.ast.Type;
+import tinto.ast.expression.*;
+import tinto.ast.statement.*;
+import tinto.ast.struct.*;
+import java.util.Hashtable;
+
+/**
+ * Clase que añade el cuerpo a los métodos de una biblioteca a partir
+ * de un fichero ".tinto" y de la cabecera de la biblioteca
+ */ 
+public class TintoParser {
+
+	//----------------------------------------------------------------//
+	//                        Miembros privados                       //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Contador de errores
+	 */
+	private int errorCount;
+	
+	/**
+	 * Mensaje de errores
+	 */
+	private String errorMsg;
+	
+	/**
+	 * Librerías importadas
+	 */
+	private Hashtable<String,Library> imported;
+
+	//----------------------------------------------------------------//
+	//                  Método de llamada al parser                   //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Analiza un fichero ".tinto" añadiendo la información del cuerpo de los métodos
+	 */
+	public boolean parse(Library library, Hashtable<String,Library> il) {
+		this.imported = il;
+		try { 
+			CompilationUnit(library);
+			return true;
+		} catch(Exception e) {
+			return false;
+		}
+	}
+	
+	//----------------------------------------------------------------//
+	//       Métodos relacionados con el tratamiento de errores       //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Obtiene el número de errores del análisis
+	 * @return
+	 */
+	public int getErrorCount() {
+		return this.errorCount;
+	}
+	
+	/**
+	 * Obtiene el mensaje de error del análisis
+	 * @return
+	 */
+	public String getErrorMsg() {
+		return this.errorMsg;
+	}
+	
+	/**
+	 * Almacena un error de análisis
+	 * @param ex
+	 */
+	private void catchError(Exception ex) {
+		ex.printStackTrace();
+		this.errorCount++;
+		this.errorMsg += ex.toString();
+	}
+
+	//----------------------------------------------------------------//
+	//       Métodos relacionados con las librerías importadas        //
+	//----------------------------------------------------------------//
+	
+	/**
+	 * Obtiene la referencia a una librería importada
+	 */
+	private Library getImportedLibrary(String libname) {
+		return imported.get(libname);
+	}
+	
+	//----------------------------------------------------------------//
+	//       Métodos relacionados con las aciones semánticas          //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Acción semántica asociada al reconocimiento de una declaración de variable
+	 */
+	private void actionAddDeclaration(	BlockStatement block, 
+										Method method, 
+										Library library, 
+										int type,
+										Token tid,
+										Expression exp) {
+		verifyDuplicatedVariable(tid, method);
+		Variable var = new Variable(type, tid.image);
+		method.addLocalVariable(var);
+		if(exp != null) {
+			AssignStatement stm = new AssignStatement(var,exp);
+			block.addStatement(stm);
+		}									
+	}
+	
+	/**
+	 * Acción semántica que obtiene la instrucción asociada a una declaración
+	 * de variables. Si no hay inicializaciones devuelve null. Si sólo hay una
+	 * devuelve esa asignación. Si hay más de una devuelve el bloque de
+	 * asignaciones.
+	 */
+	private Statement actionGetStatementFromBlock(BlockStatement block) {
+		Statement[] list = block.getStatementList();
+		if(list.length == 0) return null;
+		if(list.length == 1) return list[0];
+		return block;
+	}
+		
+	/**
+	 * Acción semántica asociada al reconocimiento de una instrucción de asignación
+	 */
+	private Statement actionAssignStatement(Token tk, Expression exp, Method method, Library library) {
+		verifyUnknownVariable(tk,method);
+		Variable var = method.getVariable(tk.image);
+		verifyTypes(tk,var,exp);
+		return new AssignStatement(var,exp);
+	}
+
+	/**
+	 * Acción semántica asociada al reconocimiento de una llamada a un método
+	 * de la misma biblioteca
+	 */
+	private Statement actionCallStatement(Token tk, CallParameters param, Method method, Library library) {
+		verifyUnknownMethod(tk,param,library);		
+		Method called = library.getMethod(tk.image,param.getTypes());
+		CallExpression exp = new CallExpression(called,param,library);
+		return new CallStatement(exp);
+	}
+	
+	/**
+	 * Acción semántica asociada al reconocimiento de una llamada a un método
+	 * de una biblioteca importada
+	 */
+	private Statement actionCallStatement( Token tid1, Token tid2, CallParameters param, Method method, Library library) {
+		verifyUnknownLibrary(tid1); 
+		Library lib = getImportedLibrary(tid1.image);
+		verifyUnknownMethod(tid2,param,lib);
+		Method called = lib.getMethod(tid2.image,param.getTypes());
+		CallExpression exp = new CallExpression(called,param,lib);
+		return new CallStatement(exp);
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión binaria que define un OR entre
+	 * dos expresiones.
+	 */
+	private Expression actionOrExpression(Token tk,Expression exp1, Expression exp2) {
+		verifyBooleanTypes(tk,exp1,exp2);
+		int type = Type.BOOLEAN_TYPE;
+		int op = BinaryExpression.OR;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión binaria que define un AND entre
+	 * dos expresiones.
+	 */
+	private Expression actionAndExpression(Token tk, Expression exp1, Expression exp2) {
+		verifyBooleanTypes(tk,exp1,exp2);
+		int type = Type.BOOLEAN_TYPE;
+		int op = BinaryExpression.AND;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+
+	/**
+	 * Acción semántica que crea una expresión binaria que define un OR a nivel de bits entre
+	 * dos expresiones.
+	 */
+	private Expression actionBitOrExpression(Token tk,Expression exp1, Expression exp2) {
+		verifyIntegerTypes(tk,exp1,exp2);
+		int type = Type.INT_TYPE;
+		int op = BinaryExpression.BIT_OR;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+
+	/**
+	 * Acción semántica que crea una expresión binaria que define un XOR a nivel de bits entre
+	 * dos expresiones.
+	 */
+	private Expression actionXorExpression(Token tk,Expression exp1, Expression exp2) {
+		verifyIntegerTypes(tk,exp1,exp2);
+		int type = Type.INT_TYPE;
+		int op = BinaryExpression.XOR;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión binaria que define un AND a nivel de bits entre
+	 * dos expresiones.
+	 */
+	private Expression actionBitAndExpression(Token tk, Expression exp1, Expression exp2) {
+		verifyIntegerTypes(tk,exp1,exp2);
+		int type = Type.INT_TYPE;
+		int op = BinaryExpression.BIT_AND;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión binaria que define una relación entre
+	 * dos expresiones.
+	 */
+	private Expression actionRelExpression(Token tk, int op, Expression exp1, Expression exp2) {
+		verifyRelationTypes(tk,op,exp1,exp2);
+		int type = Type.BOOLEAN_TYPE;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+
+	/**
+	 * Acción semántica que crea una expresión binaria que define una relación entre
+	 * dos expresiones.
+	 */
+	private Expression actionShiftExpression(Token tk, int op, Expression exp1, Expression exp2) {
+		verifyIntegerTypes(tk,exp1,exp2);
+		int type = Type.INT_TYPE;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión unaria sobre otra expresión.
+	 */
+	private Expression actionUnaryExpression(Token tk, int op, Expression exp) {
+		switch(op) {
+			case UnaryExpression.NONE: 
+				return exp;
+			case UnaryExpression.NOT: 
+				verifyBooleanType(tk,exp); 
+				return new UnaryExpression(Type.BOOLEAN_TYPE,op,exp);
+			case UnaryExpression.MINUS:
+				verifyIntegerType(tk,exp); 
+				return new UnaryExpression(Type.INT_TYPE,op,exp);
+			case UnaryExpression.PLUS:
+				verifyIntegerType(tk,exp); 
+				return exp;
+			case UnaryExpression.TILDE:
+				verifyIntegerType(tk,exp); 
+				return new UnaryExpression(Type.INT_TYPE,op,exp);
+		}
+		return exp; 
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión binaria en forma de suma o resta
+	 */
+	private Expression actionSumExpression(Token tk,int op, Expression exp1, Expression exp2) {
+		verifyIntegerTypes(tk,exp1,exp2);
+		int type = Type.INT_TYPE;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión binaria en forma de producto, división o módulo
+	 */
+	private Expression actionProdExpression(Token tk,int op, Expression exp1, Expression exp2) {
+		verifyIntegerTypes(tk,exp1,exp2);
+		int type = Type.INT_TYPE;
+		Expression exp = new BinaryExpression(type, op, exp1, exp2);
+		return exp; 
+	}
+	
+	/**
+	 * Acción semántica que crea una expresión de referencia a una variable o a un método
+	 */
+	private Expression actionReferenceExpression(	Method method, 
+										Library library,
+										Token tid1,
+										Token tid2,
+										CallParameters param) {
+		if(param == null) {
+			verifyUnknownVariable(tid1,method);
+			Variable var = method.getVariable(tid1.image);
+			return new VariableExpression(var);
+		} else if(tid2 == null) {
+			verifyUnknownMethod(tid1,param,library);
+			Method called = library.getMethod(tid1.image,param.getTypes());
+			return new CallExpression(called,param,library);
+		} else {
+			verifyUnknownLibrary(tid1);
+			Library lib = getImportedLibrary(tid1.image);
+			verifyUnknownMethod(tid2,param,lib);
+			Method called = lib.getMethod(tid2.image,param.getTypes());
+			return new CallExpression(called,param,lib);
+		}
+	}
+	
+	/**
+	 * Acción semántica que crea un literal de tipo entero
+	 */
+	private Expression actionIntegerLiteral(Token tk) {
+		verifyIntegerValue(tk);
+		try { return new IntegerLiteralExpression(tk.image); }
+		catch(Exception e) { return new IntegerLiteralExpression(0); }
+	}
+	
+	//----------------------------------------------------------------//
+	//                Métodos de verificación semántica               //
+	//----------------------------------------------------------------//
+	
+	/**
+	 * Verifica que el código de un método alcanza siempre un return
+	 */
+	private void verifyUnfinishedMethod(Token tk, BlockStatement body, Method method) {
+		if(method.getType() != Type.VOID_TYPE && !body.returns() ){
+			int errorcode = SemanticException.UNFINISHED_METHOD;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+	
+	/**
+	 * Verifica que la sentencia a añadir a un bloque es alcanzable
+	 */
+	private void verifyUnreachableCode(Statement stm, BlockStatement block) {
+		if(stm != null && block.isBroken() ) {
+			int errorcode = SemanticException.UNREACHABLE_CODE;
+			catchError(new SemanticException(errorcode,getToken(0)));
+		}
+	}
+	
+	/**
+	 * Verifica que una variable no esté duplicada
+	 */
+	private void verifyDuplicatedVariable(Token tk, Method method) {
+		if(method.existsInContext(tk.image)) {
+			int errorcode = SemanticException.DUPLICATED_VARIABLE_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+
+	/**
+	 * Verifica que una clausula case o default no esté duplicada
+	 */
+	private void verifyDuplicatedCase(Token tk, DefaultCaseStatement onecase, SwitchStatement stm) {
+		if(onecase.getValue()==null) {
+			if (stm.haveDefault()) {
+			  int errorcode = SemanticException.DUPLICATED_CASE_EXCEPTION;
+			  catchError(new SemanticException(errorcode,tk));			}
+		} else if (stm.contains(onecase)) {
+		  int errorcode = SemanticException.DUPLICATED_CASE_EXCEPTION;
+	      catchError(new SemanticException(errorcode,tk));		}
+	}
+	
+	/**
+	 * Verifica que la condición de una intrucción if, while, do while o for sea una
+	 * expresión booleana.
+	 */
+	private void verifyBooleanExpression(Token tk, Expression expr) {
+		if(expr.getType() != Type.BOOLEAN_TYPE) {
+			int errorcode = SemanticException.INVALID_CONDITION_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}	
+
+	/**
+	 * Verifica que la condición de una intrucción if, while, do while o for sea una
+	 * expresión booleana.
+	 */
+	private void verifyIntegerExpression(Token tk, Expression expr) {
+		if(expr.getType() != Type.INT_TYPE) {
+			int errorcode = SemanticException.INVALID_CONDITION_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+	
+	/**
+	 * Verifica que una instrucción return devuelve un tipo de dato correcto
+	 */
+	private void verifyReturnType(Token tk, Expression expr, Method method) {
+		if(expr == null && method.getType() != Type.VOID_TYPE) {
+			int errorcode = SemanticException.INVALID_RETURN_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+		if(expr != null && method.getType() != expr.getType()) {
+			int errorcode = SemanticException.INVALID_RETURN_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}		
+	}
+	
+	/**
+	 * Verifica la existencia una variable de una instrucción de asignación
+	 */
+	private void verifyUnknownVariable(Token tk, Method method) {
+		if(method.getVariable(tk.image) == null) {
+			int errorcode = SemanticException.UNKNOWN_VARIABLE_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+		
+	/** 
+	 * Verifica que los tipos de datos en una instrucción de asignación son correctos
+	 */
+	private void verifyTypes(Token tk, Variable var, Expression expr) {
+		if(var.getType() != expr.getType()) {
+			int errorcode = SemanticException.TYPE_MISMATCH_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}		
+	}
+	
+	/**
+	 * Verifica la existencia un método en una cierta biblioteca
+	 */
+	private void verifyUnknownMethod(Token tk, CallParameters param, Library library) {
+		if(library == null) return;
+		if(library.getMethod(tk.image,param.getTypes()) == null) {
+			int errorcode = SemanticException.UNKNOWN_METHOD_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+	
+	/**
+	 * Verifica que una biblioteca ha sido importada
+	 */
+	private void verifyUnknownLibrary(Token tk) {
+		if(getImportedLibrary(tk.image) == null) {
+			int errorcode = SemanticException.UNKNOWN_LIBRARY_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+	
+	/**
+	 * Verifica que los dos operandos de una expresión lógica (AND, OR) sean booleanos
+	 */
+	private void verifyBooleanTypes(Token tk, Expression exp1, Expression exp2) {
+		if(exp1.getType() != Type.BOOLEAN_TYPE || exp2.getType() != Type.BOOLEAN_TYPE) {
+			int errorcode = SemanticException.TYPE_MISMATCH_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+	
+	/**
+	 * Verifica que los tipos de los dos operandos de una relación sean correctos
+	 */
+	private void verifyRelationTypes(Token tk, int relop, Expression exp1, Expression exp2) {
+		if(exp1.getType() != exp2.getType()) {
+			int errorcode = SemanticException.TYPE_MISMATCH_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+		if(relop != BinaryExpression.EQ && relop != BinaryExpression.NEQ && 
+		   exp1.getType() == Type.BOOLEAN_TYPE) {
+		   	int errorcode = SemanticException.TYPE_MISMATCH_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		} 
+	}
+	
+	/**
+	 * Verifica que una expresión sea de tipo boolean
+	 */
+	private void verifyBooleanType(Token tk, Expression expr) {
+		if(expr.getType() != Type.BOOLEAN_TYPE) {
+			int errorcode = SemanticException.TYPE_MISMATCH_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}	
+	
+	/**
+	 * Verifica que una expresión sea de tipo entero
+	 */
+	private void verifyIntegerType(Token tk, Expression expr) {
+		if(expr.getType() != Type.INT_TYPE) {
+			int errorcode = SemanticException.TYPE_MISMATCH_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}	
+	
+	/**
+	 * Verifica que los dos operandos de una operación sean de tipo entero
+	 */
+	private void verifyIntegerTypes(Token tk, Expression exp1, Expression exp2) {
+		if(exp1.getType() != Type.INT_TYPE || exp2.getType() != Type.INT_TYPE ) {
+			int errorcode = SemanticException.TYPE_MISMATCH_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}	
+	
+	/**
+	 * Verifica que el valor de un literal entero sea correcto
+	 */
+	private void verifyIntegerValue(Token tk) {
+		try { Integer.parseInt(tk.image); }
+		catch(Exception e) {
+			int errorcode = SemanticException.NUMBER_FORMAT_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}		
+}
+
+PARSER_END(TintoParser)
+
+
+/* WHITE SPACE */
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| "\f"
+}
+
+/* COMMENTS */
+
+SKIP :
+{
+  <SINGLE_LINE_COMMENT: "//" ( ~["\n","\r"] )* ("\n" | "\r" | "\r\n") >
+|
+  <MULTI_LINE_COMMENT: "/*" ( ~["*"] | ("*")+ ~["*","/"] )* ("*")+ "/" >
+}
+
+
+/* RESERVED WORDS */
+
+TOKEN :
+{
+  < BOOLEAN: "boolean" >
+| < BREAK: "break" >
+| < CASE: "case" >
+| < CHAR: "char" >
+| < CONTINUE: "continue" >
+| < OTHERCASE: "default" >
+| < DO: "do" >
+| < ELSE: "else" >
+| < FALSE: "false" >
+| < FOR: "for" >
+| < IF: "if" >
+| < IMPORT: "import" >
+| < INT: "int" >
+| < LIBRARY: "library" >
+| < RETURN: "return" >
+| < SWITCH: "switch" >
+| < TRUE: "true" >
+| < VOID: "void" >
+| < WHILE: "while" >
+}
+
+/* LITERALS */
+
+TOKEN :
+{
+  < INTEGER_LITERAL: ( <DECIMAL_LITERAL> | <HEX_LITERAL> | <OCTAL_LITERAL> ) >
+|
+  < #DECIMAL_LITERAL: ["1"-"9"] (["0"-"9"])* >
+|
+  < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
+|
+  < #OCTAL_LITERAL: "0" (["0"-"7"])* >
+|
+  < CHAR_LITERAL:
+      "'"
+      (   (~["'","\\","\n","\r"])
+        | ("\\"
+            ( ["n","t","b","r","f","\\","'","\""]
+            | ["0"-"7"] ( ["0"-"7"] )?
+            | ["0"-"3"] ["0"-"7"] ["0"-"7"]
+            )
+          )
+      )
+      "'"
+  >
+}
+
+/* IDENTIFIERS */
+
+TOKEN :
+{
+  < IDENTIFIER: ["a"-"z","A"-"Z","_"] ( ["a"-"z","A"-"Z","0"-"9","_"] )* >
+}
+
+/* SEPARATORS */
+
+TOKEN :
+{
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < SEMICOLON: ";" >
+| < COLON: ":" >
+| < COMMA: "," >
+| < DOT: "." >
+}
+
+/* OPERATORS */
+
+TOKEN :
+{
+  < ASSIGN: "=" >
+| < EQ: "==" >
+| < LE: "<=" >
+| < GT: ">" >
+| < LT: "<" >
+| < GE: ">=" >
+| < NE: "!=" >
+| < OR: "||" >
+| < AND: "&&" >
+| < NOT: "!" >
+| < PLUS: "+" >
+| < MINUS: "-" >
+| < PROD: "*" >
+| < DIV: "/" >
+| < MOD: "%" >
+| < BIT_AND: "&" >
+| < BIT_OR: "|" >
+| < XOR: "^" >
+| < TILDE: "~" >
+| < LSHIFT: "<<" >
+| < RUNSIGNEDSHIFT: ">>>" >
+| < RSIGNEDSHIFT: ">>" >
+}
+
+
+/**************************************************************/
+/*         EL ANÁLISIS DE LA CABECERA COMIENZA AQUÍ           */
+/**************************************************************/
+
+/**
+ * Reconoce el contenido completo de un archivo ".tinto"
+ *
+ * CompilationUnit -> (InportClause)* Library
+ */
+void CompilationUnit(Library library):
+{}
+{ 
+  ( ImportClause() )*  Library(library)
+}
+
+/**
+ * Reconoce una claúsula de importación y la incluye en la biblioteca
+ *
+ * ImportClause -> <IMPORT>  <IDENTIFIER>  <SEMICOLON>
+ */
+void ImportClause():
+{
+  int[] lsync = { SEMICOLON };
+  int[] rsync = { IMPORT, LIBRARY };
+}
+{
+  try {  <IMPORT>  <IDENTIFIER>  <SEMICOLON>  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+}
+
+/**
+ * Reconoce el cuerpo de una biblioteca
+ *
+ * Library -> <LIBRARY>  <IDENTIFIER> <LBRACE> ( Method )* <RBRACE>
+ */
+void Library(Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { };
+}
+{
+  try {  <LIBRARY>  <IDENTIFIER> <LBRACE> ( Method(library) )* <RBRACE> }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+}
+
+/**
+ * Reconoce un método de la biblioteca
+ *
+ * Method -> MethodType <IDENTIFIER>  ArgumentDecl MethodBody
+ */
+void Method(Library library) :
+{
+  Token tid;
+  int[] arg;
+  Method method;
+}
+{
+  MethodType() tid = <IDENTIFIER>  arg = ArgumentDecl() 
+  
+	{ method = library.getMethod(tid.image, arg); }
+	
+  MethodBody(method,library)
+}
+
+/**
+ * Reconoce el tipo de dato que devuelve un método
+ *
+ * MethodType -> Type | <VOID>
+ */
+void MethodType() :
+{}
+{
+   Type()
+ | <VOID>
+}
+
+/**
+ * Reconoce el tipo de dato de una variable
+ *
+ * Type -> <INT> | <CHAR> | <BOOLEAN>
+ */  
+int Type() :
+{}
+{
+   <INT> 		{ return Type.INT_TYPE; }      
+ | <CHAR>     	{ return Type.CHAR_TYPE; }
+ | <BOOLEAN>  	{ return Type.BOOLEAN_TYPE; }
+}
+
+/**
+ * Reconoce la declaración de argumentos de un método
+ *
+ * ArgumentDecl -> <LPAREN>  (  Argument ( <COMMA>  Argument )* )?  <RPAREN>
+ */
+int[] ArgumentDecl() :
+{
+  int[] lsync = { RPAREN };
+  int[] rsync = { LBRACE };
+  int[] arg = new int[0];
+}
+{
+   try {  <LPAREN>  (  arg = Argument(arg) ( <COMMA>  arg = Argument(arg) )* )?  <RPAREN> }
+   catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }  
+   
+	{ return arg; }
+}
+
+/**
+ * Reconoce la declaración de un argumento
+ *
+ * Argument -> Type <IDENTIFIER>
+ */
+int[] Argument(int[] list) :
+{ 
+  int[] lsync = { };
+  int[] rsync = { COMMA, RPAREN };
+  int type = Type.MISMATCH_TYPE;
+  int[] nl = new int[list.length+1];
+  System.arraycopy(list,0,nl,0,list.length);
+}
+{
+  try {  type = Type()  <IDENTIFIER>  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+  
+	{ nl[list.length] = type; return nl; }
+}
+
+/**
+ * Reconoce el cuerpo de un método
+ *
+ * MethodBody -> <LBRACE>  (  Stm() )*  <RBRACE>
+ */
+void MethodBody(Method method, Library library) :
+{
+  BlockStatement block = new BlockStatement();
+  Statement stm;
+  Token tk;
+}
+{
+        <LBRACE>  
+      ( 
+      stm = TryStm(method,library) { verifyUnreachableCode(stm,block); block.addStatement(stm); }
+      )*  
+   tk = <RBRACE>
+   
+	{ verifyUnfinishedMethod(tk,block,method); method.setBody(block); }
+}
+
+/**
+ * Reconoce una sentencia del lenguaje y la añade al bloque de sentencias activo
+ */
+Statement TryStm(Method method, Library library) :
+{
+  int[] lsync = { SEMICOLON, LBRACE };
+  int[] rsync = { };
+  Statement stm;
+}
+{
+  try {  
+  	stm = Stm(method, library)
+  	{ return stm; } 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+}
+
+/**
+ * Reconoce una sentencia del lenguaje
+ *
+ * Stm -> Decl | IdStm | IfStm | WhileStm | ReturnStm | NoStm | BlockStm
+ */
+Statement Stm(Method method, Library library) :
+{
+	Statement stm = null; 
+}
+{
+ (
+   stm = Decl(method, library)
+ | stm = IdStm(method, library)
+ | stm = IfStm(method, library)
+ | stm = SwitchStm(method, library)
+ | stm = WhileStm(method, library)
+ | stm = DoWhileStm(method, library)
+ | stm = ForStm(method, library)
+ | stm = ReturnStm(method, library)
+ | stm = BreakStm(method, library)
+ | stm = ContinueStm(method, library)
+ | stm = NoStm(method, library)
+ | stm = BlockStm(method, library)
+ )
+ 
+ 	{ return stm; }
+}
+
+/**
+ * Reconoce la declaración de una variable (o una lista de variables)
+ *
+ * Decl -> Type <IDENTIFIER>  Assignement  ( <COMMA> <IDENTIFIER> Assignement )*  <SEMICOLON>
+ */
+Statement Decl(Method method, Library library) :
+{ 
+	int type;
+	Token tid;
+	Expression exp;
+	BlockStatement block = new BlockStatement();
+}
+{
+   type = Type() 
+   tid = <IDENTIFIER>  
+   exp = Assignement(method, library)
+       { actionAddDeclaration(block, method, library, type, tid, exp); }  
+   ( 
+   		<COMMA> 
+     	tid = <IDENTIFIER> 
+     	exp = Assignement(method, library) 
+      { actionAddDeclaration(block, method, library, type, tid, exp); }  
+   )*  
+   <SEMICOLON>
+   
+   { return actionGetStatementFromBlock(block); }
+}
+
+/**
+ * Reconoce una asignación opcional y devuelve la referencia a la parte derecha
+ *
+ * Assignament -> ( <ASSIGN> Expr )?
+ */
+Expression Assignement(Method method, Library library) :
+{ Expression exp = null;}
+{
+  ( <ASSIGN>  exp = Expr(method,library) )?
+  
+		{ return exp; }  
+}
+
+/**
+ * Reconoce una instrucción "if".
+ *
+ * IfStm -> <IF> <LPAREN> Expr <RPAREN> Stm  ( <ELSE> Stm )?
+ */
+Statement IfStm(Method method, Library library) :
+{
+	Token tk;
+	Expression cond;
+	Statement then;
+	Statement otherwise = null;
+	 
+}
+{
+  <IF>  tk = <LPAREN>  cond = Expr(method,library)  <RPAREN>   then = TryStm(method,library)  
+  ( LOOKAHEAD( 1 )  <ELSE> 	otherwise = TryStm(method,library) )?
+  
+  		{ verifyBooleanExpression(tk,cond); return new IfStatement(cond,then,otherwise); }
+}
+
+/**
+ * Reconoce una instrucción "switch".
+ *
+ * SwitchStm -> <SWITCH> <LPAREN> Expr <RPAREN> <LBRACE> ( CaseStm | DefaultStm )* <RBRACE>
+ */
+
+Statement SwitchStm(Method method, Library library) :
+{
+	Token tk;
+	Expression exp;
+	SwitchStatement stm;
+	DefaultCaseStatement incase;
+	 
+}
+{
+  <SWITCH> tk = <LPAREN>
+  	exp = Expr(method,library) { verifyIntegerType(tk, exp); stm = new SwitchStatement(exp); }
+  <RPAREN>
+  tk = <LBRACE>
+	( incase = CaseStm(method, library) { verifyDuplicatedCase(tk,incase,stm); stm.addCase(incase);} 
+	|  incase = DefaultStm(method,library) { verifyDuplicatedCase(tk,incase,stm); stm.addDefault(incase);} )*
+   <RBRACE>
+  		{ return stm; }
+}
+
+/**
+ * Reconoce una seccion "case" de una instruccion "switch".
+ *
+ * CaseStm -> <CASE> <INTEGER_LITERAL> <COLON> (Stm)* 
+ */
+DefaultCaseStatement CaseStm(Method method, Library library) :
+{
+	Token tk;
+	BlockStatement block = new BlockStatement();
+	Statement stm;
+	 
+}
+{
+  <CASE> tk = <INTEGER_LITERAL> <COLON> (stm = TryStm(method,library) {verifyUnreachableCode(stm,block); block.addStatement(stm);})*
+  		{ return new DefaultCaseStatement(new IntegerLiteralExpression(tk.image),block); }
+}
+
+/**
+ * Reconoce una seccion "default" de una instruccion "switch".
+ *
+ * DefaultStm -> <DEFAULT> <COLON> (Stm)* 
+ */
+DefaultCaseStatement DefaultStm(Method method, Library library) :
+{
+	Token tk;
+	Statement stm;
+	BlockStatement block = new BlockStatement();
+}
+{
+	<OTHERCASE> tk = <COLON> (stm = TryStm(method,library) {verifyUnreachableCode(stm,block); block.addStatement(stm);})*
+  		{ return new DefaultCaseStatement(null,block); }
+}
+
+/**
+ * Reconoce una instrucción "while".
+ *
+ * WhileStm -> <WHILE> <LPAREN> Expr <RPAREN> Stm
+ */
+Statement WhileStm(Method method, Library library) :
+{
+	Token tk;
+	Expression cond;
+	Statement body; 
+}
+{
+  <WHILE>  tk = <LPAREN>  cond = Expr(method,library)  <RPAREN>  body = TryStm(method,library)
+  
+  		{ verifyBooleanExpression(tk,cond); return new WhileStatement(cond,body); }
+  
+}
+
+/**
+ * Reconoce una instrucción "do while".
+ *
+ * DoWhileStm -> <DO> Stm <WHILE> <LPAREN> Expr <RPAREN> <SEMICOLON>
+ */
+Statement DoWhileStm(Method method, Library library) :
+{
+	Token tk;
+	Expression cond;
+	Statement body; 
+}
+{
+  <DO> body = TryStm(method,library) <WHILE>  tk = <LPAREN>  cond = Expr(method,library)  <RPAREN> <SEMICOLON>
+  
+  		{ verifyBooleanExpression(tk,cond); return new DoWhileStatement(cond,body); }
+  
+}
+
+/**
+ * Reconoce una instrucción "for".
+ *
+ * ForStm -> <FOR> <LPAREN> (ForIni)? <SEMICOLON> (Expr)? <SEMICOLON> (ForInc)? <RPAREN> Stm
+ */
+Statement ForStm(Method method, Library library) :
+{
+	Token tk;
+	Expression cond = new BooleanLiteralExpression("true");
+	Statement body;
+	Statement inc = null;
+	Statement ini = null;
+}
+{
+
+	<FOR> { method.createContext(); } <LPAREN>
+		 (  	 	ini = ForIni(method, library)	 )?
+		 tk = <SEMICOLON> (cond = Expr(method,library))? <SEMICOLON>
+	 	 (	   inc = ForInc(method, library)
+	 )?
+	
+	 <RPAREN>  body = TryStm(method,library)  
+  
+  		{ verifyBooleanExpression(tk,cond); method.deleteContext(); return new ForStatement(ini,cond,inc,body); }  
+}
+
+/**
+ * Reconoce la inicializacion de la instruccion "for".
+ * 
+ * ForIni -> Type <IDENTIFIER>  Assignement  ( <COMMA> <IDENTIFIER> Assignement )*
+ *			|  <ID> ( Assignement | MethodCall | <DOT>  <ID>  MethodCall ) ( <COMMA>  <ID> ( Assignement | MethodCall | <DOT>  <ID>  MethodCall ) )*
+ */
+Statement ForIni(Method method, Library library) :
+{
+	int type;
+	Token tid1, tid2;
+	Expression exp;
+	BlockStatement block = new BlockStatement();
+	CallParameters call; 
+	Statement stm;
+}
+{
+   (     type = Type() tid1 = <IDENTIFIER>  exp = Assignement(method, library)
+       { actionAddDeclaration(block, method, library, type, tid1, exp); }  
+   	 ( 
+   		<COMMA> 
+     	tid1 = <IDENTIFIER> 
+     	exp = Assignement(method, library) 
+      		{ actionAddDeclaration(block, method, library, type, tid1, exp); }  
+   	 )*  
+   			{ return actionGetStatementFromBlock(block); }
+
+  	|
+		tid1 = <IDENTIFIER>  
+  		(
+     		<ASSIGN> exp = Expr(method,library)  	{ stm = actionAssignStatement(tid1,exp,method,library); } 
+   		| call = MethodCall(method,library)		{ stm = actionCallStatement(tid1,call,method,library); } 
+   		| <DOT>  tid2 = <IDENTIFIER>  call = MethodCall(method,library)
+   											{ stm = actionCallStatement(tid1,tid2,call,method,library); }
+  		) { block.addStatement(stm);}
+
+		(
+		  <COMMA> tid1 = <IDENTIFIER>
+		  (
+     		<ASSIGN> exp = Expr(method,library)  	{ stm = actionAssignStatement(tid1,exp,method,library); } 
+   		  | call = MethodCall(method,library)		{ stm = actionCallStatement(tid1,call,method,library); } 
+   		  | <DOT>  tid2 = <IDENTIFIER>  call = MethodCall(method,library)
+   											{ stm = actionCallStatement(tid1,tid2,call,method,library); }
+  		  ) { block.addStatement(stm);}		)*
+  			{ return actionGetStatementFromBlock(block); }
+
+	)
+}
+
+/**
+ * Reconoce el incremento de la instruccion "for".
+ *
+ * ForInc -> <ID> ( Assignement | MethodCall | <DOT>  <ID>  MethodCall ) ( <COMMA>  <ID> ( Assignement | MethodCall | <DOT>  <ID>  MethodCall ) )*
+ */
+Statement ForInc(Method method, Library library) :
+{
+	Token tid1, tid2;
+	Expression exp;
+	BlockStatement block = new BlockStatement();
+	CallParameters call; 
+	Statement stm;
+}
+{
+	tid1 = <IDENTIFIER>  
+  	(
+     	<ASSIGN> exp = Expr(method,library)  	{ stm = actionAssignStatement(tid1,exp,method,library); } 
+   	| call = MethodCall(method,library)		{ stm = actionCallStatement(tid1,call,method,library); } 
+   	| <DOT>  tid2 = <IDENTIFIER>  call = MethodCall(method,library)
+   											{ stm = actionCallStatement(tid1,tid2,call,method,library); }
+  	) { block.addStatement(stm);}
+
+	(
+		<COMMA> tid1 = <IDENTIFIER>
+		(
+     		<ASSIGN> exp = Expr(method,library)  	{ stm = actionAssignStatement(tid1,exp,method,library); } 
+   		 | call = MethodCall(method,library)		{ stm = actionCallStatement(tid1,call,method,library); } 
+   		 | <DOT>  tid2 = <IDENTIFIER>  call = MethodCall(method,library)
+   											{ stm = actionCallStatement(tid1,tid2,call,method,library); }
+  		) { block.addStatement(stm);}
+	 )*
+  		{ return actionGetStatementFromBlock(block); }
+
+}
+
+/**
+ * Reconoce una instrucción "return".
+ *
+ * ReturnStm -> <RETURN> ( Expr )? <SEMICOLON>
+ */
+Statement ReturnStm(Method method, Library library) :
+{
+	Token tk;
+	Expression exp = null; 
+}
+{
+  tk = <RETURN>  ( exp = Expr(method,library) )?  <SEMICOLON>
+  
+   		{ verifyReturnType(tk,exp,method); return new ReturnStatement(exp); } 
+}
+
+/**
+ * Reconoce una instrucción "break".
+ *
+ * BreakStm -> <BREAK> <SEMICOLON>
+ */
+Statement BreakStm(Method method, Library library) :
+{
+}
+{
+  <BREAK>  <SEMICOLON>
+  
+   		{ return new BreakStatement(); } 
+}
+
+/**
+ * Reconoce una instrucción "continue".
+ *
+ * ContinueStm -> <CONTINUE> <SEMICOLON>
+ */
+Statement ContinueStm(Method method, Library library) :
+{
+}
+{
+  <CONTINUE> <SEMICOLON>
+  
+   		{ return new ContinueStatement(); } 
+}
+
+/**
+ * Reconoce una instrucción vacía.
+ *
+ * NoStm -> <SEMICOLON>
+ */
+Statement NoStm(Method method, Library library) :
+{}
+{
+  <SEMICOLON>
+  { return null; }
+}
+
+/**
+ * Reconoce una instrucción que comienza por "id"
+ *
+ * IdStm -> <ID> ( Assignement | MethodCall | <DOT>  <ID>  MethodCall )  <SEMICOLON>
+ */
+Statement IdStm(Method method, Library library) :
+{
+	Token tid1, tid2;
+	Expression exp;
+	CallParameters call; 
+	Statement stm;
+}
+{
+  tid1 = <IDENTIFIER>  
+  (
+     <ASSIGN> exp = Expr(method,library)  	{ stm = actionAssignStatement(tid1,exp,method,library); } 
+   | call = MethodCall(method,library)		{ stm = actionCallStatement(tid1,call,method,library); } 
+   | <DOT>  tid2 = <IDENTIFIER>  call = MethodCall(method,library)
+   											{ stm = actionCallStatement(tid1,tid2,call,method,library); }
+  ) <SEMICOLON> 
+  
+  	{ return stm; }
+}
+
+/**
+ * Reconoce un bloque de instrucciones entre llaves.
+ *
+ * BlockStm -> <LBRACE> ( Stm )* <RBRACE>
+ */
+Statement BlockStm(Method method, Library library) :
+{ 
+	BlockStatement block = new BlockStatement();
+	Statement stm;
+}
+{
+	{ method.createContext(); }
+	
+  <LBRACE> 
+   ( 
+   stm = TryStm(method,library) { verifyUnreachableCode(stm,block); block.addStatement(stm); } 
+   )* 
+  <RBRACE>
+      		
+  	{ method.deleteContext(); return block; }
+}
+
+/**************************************************************/
+/*       EL ANÁLISIS DE LAS EXPRESIONES COMIENZA AQUÍ         */
+/**************************************************************/
+
+/**
+ * Analiza una expresión genérica. Puesto que el operador de menor prioridad
+ * de los incluidos en Tinto es la disjunción (OR), un expresión se define
+ * como una lista de disjunciones.
+ *
+ * Expr -> AndExpr ( <OR> AndExpr )*
+ */
+Expression Expr(Method method, Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN };
+  Expression exp1 = null, exp2;
+  Token tk;
+}
+{
+  try { 
+  		exp1 = AndExpr(method,library) 
+  		( 
+  		  tk = <OR>  
+  		  exp2 = AndExpr(method,library) 
+  		  	{ exp1 = actionOrExpression(tk, exp1,exp2); } 
+  		)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+  
+  	{ return exp1; }
+}
+
+/**
+ * Analiza una expresión conjuntiva, es decir, formada por una lista de
+ * conjunciones (operaciones AND).
+ *
+ * AndExpr -> BitOrExpr ( <AND> BitOrExpr )*
+ */
+Expression AndExpr(Method method, Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR };
+  Expression exp1 = null, exp2;
+  Token tk;
+}
+{
+  try { 
+  		exp1 = BitOrExpr(method,library) 
+  		( 
+  		  tk = <AND> 
+  		  exp2 = BitOrExpr(method,library) 
+  		  	{ exp1 = actionAndExpression(tk,exp1,exp2); } 
+  		)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }  
+  
+  	{ return exp1; }
+}
+
+/**
+ * Analiza una expresión disjuntiva inclusiva a nivel de bit, es decir, formada por una lista de
+ * disjunciones inclusivas a nivel de bit (operaciones |).
+ *
+ * BitOrExpr -> XorExpr ( <BIT_OR> XorExpr )*
+ */
+Expression BitOrExpr(Method method, Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND };
+  Expression exp1 = null, exp2;
+  Token tk;
+}
+{
+  try { 
+  		exp1 = XorExpr(method,library) 
+  		( 
+  		  tk = <BIT_OR> 
+  		  exp2 = XorExpr(method,library) 
+  		  	{ exp1 = actionBitOrExpression(tk,exp1,exp2); } 
+  		)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }  
+  
+  	{ return exp1; }
+}
+
+/**
+ * Analiza una expresión disjuntiva exclusiva a nivel de bit, es decir, formada por una lista de
+ * disjunciones exclusivas a nivel de bit (operaciones ^).
+ *
+ * XorExpr -> BitAndExpr ( <XOR> BitAndExpr )*
+ */
+Expression XorExpr(Method method, Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR };
+  Expression exp1 = null, exp2;
+  Token tk;
+}
+{
+  try { 
+  		exp1 = BitAndExpr(method,library) 
+  		( 
+  		  tk = <XOR> 
+  		  exp2 = BitAndExpr(method,library) 
+  		  	{ exp1 = actionXorExpression(tk,exp1,exp2); } 
+  		)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }  
+  
+  	{ return exp1; }
+}
+
+/**
+ * Analiza una expresión conjuntiva a nivel de bit, es decir, formada por una lista de
+ * conjunciones a nivel de bit (operaciones &).
+ *
+ * BitAndExpr -> RelExpr ( <BIT_AND> RelExpr )*
+ */
+Expression BitAndExpr(Method method, Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR, XOR };
+  Expression exp1 = null, exp2;
+  Token tk;
+}
+{
+  try { 
+  		exp1 = RelExpr(method,library) 
+  		( 
+  		  tk = <BIT_AND> 
+  		  exp2 = RelExpr(method,library) 
+  		  	{ exp1 = actionBitAndExpression(tk,exp1,exp2); } 
+  		)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }  
+  
+  	{ return exp1; }
+}
+
+/**
+ * Analiza una expresión relacional, es decir, una comparación entre dos
+ * expresiones.
+ *
+ * RelExpr -> ShiftExpr ( Relop  ShiftExpr )?
+ */
+Expression RelExpr(Method method, Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR, XOR, BIT_AND};
+  Expression exp1 = null, exp2;
+  int relop;
+  Token tk;
+}
+{
+  try { 
+  		exp1 = ShiftExpr(method,library) 
+  		( 
+			{ tk = getToken(1); }
+  		  relop = RelOp() 
+  		  exp2 = ShiftExpr(method,library) 
+  		  	{ exp1 = actionRelExpression(tk,relop,exp1,exp2); } 
+  		)? 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+  
+  	{ return exp1; }     
+}
+
+/**
+ * Reconoce un operador relacional
+ *
+ * RelOp -> <EQ> | <NE> | <GT> | <GE> | <LT> | <LE>
+ */ 
+int RelOp() :
+{}
+{
+   <EQ> { return BinaryExpression.EQ; } 
+ | <NE> { return BinaryExpression.NEQ; }
+ | <GT> { return BinaryExpression.GT; }
+ | <GE> { return BinaryExpression.GE; }
+ | <LT> { return BinaryExpression.LT; }
+ | <LE> { return BinaryExpression.LE; }
+}
+
+/**
+ * Analiza una expresión de desplazamiento a nivel de bit, es decir, formada por una lista de
+ * desplazamientos a nivel de bit (operaciones <<, >>, >>>).
+ *
+ * ShiftExpr -> SumExpr ( ShiftOp SumExpr )*
+ */
+Expression ShiftExpr(Method method, Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR, XOR, BIT_AND, EQ, NE, GT, GE, LT, LE };
+  Expression exp1 = null, exp2;
+  Token tk;
+  int shiftop;
+}
+{
+  try { 
+  		exp1 = SumExpr(method,library) 
+  		( 
+  		  { tk = getToken(1); }
+  		  shiftop = ShiftOp() 
+  		  exp2 = SumExpr(method,library) 
+  		  	{ exp1 = actionShiftExpression(tk,shiftop,exp1,exp2); } 
+  		)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }  
+  
+  	{ return exp1; }
+}
+
+/**
+ * Reconoce un operador relacional
+ *
+ * ShiftOp -> <LSHIFT> | <RSIGNEDSHIFT> | <RUNSIGNEDSHIFT> 
+ */ 
+int ShiftOp() :
+{}
+{
+   <LSHIFT> { return BinaryExpression.LSHIFT; } 
+ | <RSIGNEDSHIFT> { return BinaryExpression.RSIGNEDSHIFT; }
+ | <RUNSIGNEDSHIFT> { return BinaryExpression.RUNSIGNEDSHIFT; }
+}
+
+/**
+ * Analiza una expresión aritmética. Los operadores aritméticos
+ * de menor prioridad son la suma y la resta. Por tanto, una
+ * expresión aritmética es una suma o resta de términos.
+ *
+ * SumExpr -> UnOp  ProdExpr  ( SumOp  ProdExpr )*
+ */
+Expression SumExpr(Method method, Library library) :
+{ 
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR, XOR, BIT_AND, EQ, NE, GT, GE, LT, LE, LSHIFT, RSIGNEDSHIFT, RUNSIGNEDSHIFT };
+  Expression exp1 = null, exp2;
+  int unop;
+  int sumop;
+  Token tk;
+}
+{
+  try { 
+  			{ tk = getToken(1); }
+  		unop = UnOp() 
+  		exp1 = ProdExpr(method,library) 
+  			{ exp1 = actionUnaryExpression(tk, unop,exp1); } 
+  		( 
+  			{ tk = getToken(1); }
+  		  sumop = SumOp() 
+  		  exp2 = ProdExpr(method,library) 
+  		  	{ exp1 = actionSumExpression(tk,sumop,exp1,exp2); } 
+  		)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+  
+  	{ return exp1; }     	
+}
+
+/**
+ * Reconoce un operador unario (NONE si no encuentra ninguno)
+ *
+ * UnOp -> ( <NOT> | <PLUS> | <MINUS>)?
+ */
+int UnOp() :
+{
+	int op = UnaryExpression.NONE;
+}
+{
+  ( 
+     <NOT> { op = UnaryExpression.NOT; }
+   | <MINUS>  { op = UnaryExpression.MINUS; }
+   | <PLUS>  { op = UnaryExpression.PLUS; }
+  )?
+  	{ return op; }
+}
+
+/**
+ * Reconoce un operador de adición
+ *
+ * SumOp -> ( <PLUS> | <MINUS> )
+ */
+int SumOp() :
+{ }
+{
+  (  <MINUS> { return BinaryExpression.MINUS; }
+   | <PLUS>  { return BinaryExpression.PLUS; } 
+  )
+}	
+
+/**
+ * Reconoce una expresiómn multiplicativa
+ *
+ * ProdExpr -> Complemento ( MultOp Complemento )*
+ */
+Expression ProdExpr(Method method, Library library) :
+{ 
+  Expression exp1 = null, exp2;
+  int multop;
+  Token tk;
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR, XOR, BIT_AND, EQ, NE, GT, GE, LT, LE, LSHIFT, RSIGNEDSHIFT, RUNSIGNEDSHIFT, PLUS, MINUS };
+}
+{
+  try {	
+  	exp1 = Complemento(method,library) 
+  	( 
+  		{ tk = getToken(1); }
+  	  multop = MultOp() 
+  	  exp2 = Complemento(method,library)
+  	  
+  	   	{ exp1 = actionProdExpression(tk,multop,exp1,exp2); } 
+  	   
+	)* 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+  
+  	{ return exp1; }     	    
+}
+
+/**
+ * Reconoce un operador multiplicativo
+ *
+ * MultOp -> ( <PROD> | <DIV> | <MOD> )
+ */
+int MultOp() :
+{ }
+{
+  (  <PROD> { return BinaryExpression.PROD; } 
+   | <DIV>  { return BinaryExpression.DIV; }
+   | <MOD>  { return BinaryExpression.MOD; }
+  )
+}	
+
+/**
+ * Reconoce una operacion de complemento a 1
+ *
+ * Complemento -> (<TILDE>)? Factor
+ */
+Expression Complemento(Method method, Library library):
+{ 
+  int[] lsync = { };
+  int[] rsync = {SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR, XOR, BIT_AND, EQ, NE, GT, GE, LT, LE, LSHIFT, RSIGNEDSHIFT, RUNSIGNEDSHIFT, PLUS, MINUS, PROD, DIV, MOD};
+  Expression exp=null;
+  int unop = UnaryExpression.NONE;
+  Token tk;
+}
+{
+  try { 
+  			{ tk = getToken(1); }
+  		( <TILDE> { unop=UnaryExpression.TILDE; } )?
+  		
+  		exp = Factor(method,library) 
+  			{ exp = actionUnaryExpression(tk,unop,exp); } 
+
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+  
+  	{ return exp; }     	
+}
+
+/**
+ * Reconoce un factor dentro de una expresión multiplicativa
+ *
+ * Factor -> Literal | Reference | <LPAREN> Expr <RPAREN>
+ */
+Expression Factor(Method method, Library library) :
+{ 
+  Expression exp = null;
+  int[] lsync = { };
+  int[] rsync = { SEMICOLON, COMMA, RPAREN, OR, AND, BIT_OR, XOR, BIT_AND, EQ, NE, GT, GE, LT, LE, LSHIFT, RSIGNEDSHIFT, RUNSIGNEDSHIFT, PLUS, MINUS, PROD, DIV, MOD };
+}
+{
+  try { 
+  	(  exp = Literal(method, library) 
+  	 | exp = Reference(method, library) 
+  	 | <LPAREN> exp = Expr(method,library) <RPAREN> 
+  	) 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+  
+  	{ return exp; }	
+}
+
+/**
+ * Reconoce un literal de tipo entero, carácter o booleano
+ *
+ * Literal -> <INTEGER_LITERAL> | <CHAR_LITERAL> | <TRUE> | <FALSE>
+ */
+Expression Literal(Method method, Library library) :
+{ 
+	Token tk;
+	Expression exp;
+}
+{
+ (
+   tk = <INTEGER_LITERAL> { exp = actionIntegerLiteral(tk); }    
+ | tk = <CHAR_LITERAL>    { exp = new CharLiteralExpression(tk.image); }
+ | <TRUE>                 { exp = new BooleanLiteralExpression(true); }
+ | <FALSE>                { exp = new BooleanLiteralExpression(false); }
+ )
+  	{ return exp; }     
+}
+
+/**
+ * Reconoce una referencia a una variable o la llamada a un método
+ *
+ * Reference -> <IDENTIFIER> ( MethodCall | <DOT> <IDENTIFIER> MethodCall )?
+ */
+Expression Reference(Method method, Library library) :
+{
+	Token tid1 = null, tid2 = null;
+	CallParameters param = null;
+}
+{
+  tid1 = <IDENTIFIER> 
+  ( 
+     param = MethodCall(method,library) 
+   | <DOT>  tid2 = <IDENTIFIER>  param = MethodCall(method,library) 
+  )?
+  
+  	{ return actionReferenceExpression(method,library,tid1,tid2,param); } 
+}
+
+/**
+ * Símbolo que reconoce los parámetros de llamada a un método.
+ * Por ejemplo: " ( 3, a, b+c ) "
+ *
+ * MethodCall -> <LPAREN> ( Expr  ( <COMMA> Expr )* )?  <RPAREN>
+ */
+CallParameters MethodCall(Method method, Library library) :
+{
+	CallParameters param = new CallParameters(); 
+	Expression exp;
+}
+{
+   <LPAREN> 
+   (  
+       exp = Expr(method, library) { param.addParameter(exp); } 
+       ( <COMMA> exp = Expr(method,library) { param.addParameter(exp); } )* 
+   )?  
+   <RPAREN>
+   
+   { return param; }
+}
+
+JAVACODE
+void skipTo(int[] left, int[] right) {
+  Token prev = getToken(0);
+  Token next = getToken(1);
+  boolean flag = false;
+  if(prev.kind == EOF || next.kind == EOF) flag = true;
+  for(int i=0; i<left.length; i++) if(prev.kind == left[i]) flag = true;
+  for(int i=0; i<right.length; i++) if(next.kind == right[i]) flag = true;
+	
+  while(!flag) {
+    getNextToken();
+    prev = getToken(0);
+    next = getToken(1);
+    if(prev.kind == EOF || next.kind == EOF) flag = true;
+    for(int i=0; i<left.length; i++) if(prev.kind == left[i]) flag = true;
+    for(int i=0; i<right.length; i++) if(next.kind == right[i]) flag = true;
+  }
+}
