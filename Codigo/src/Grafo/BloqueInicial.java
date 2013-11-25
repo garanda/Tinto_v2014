@@ -6,7 +6,7 @@ public class BloqueInicial extends NodoBloque {
 
 	/**
 	 * Bloques sucesores
-	 */ 
+	 */
 	ArrayList<NodoBloque> Sucesores;
 	
 	public BloqueInicial() {
