@@ -1,0 +1,104 @@
+%\documentclass[a4,12pt]{article}
+\documentclass[a4,12pt]{book}
+
+\usepackage{hyperref}
+\usepackage[pdftex]{color,graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath} % assumes amsmath package installed
+\usepackage{fancyvrb,fancyhdr}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{listings}
+\usepackage{todonotes}
+\usepackage{authblk}
+
+%*********************** UTILIDAD **************************
+\makeatletter
+  \def\cleardoublepage{\clearpage\if@twoside \ifodd\c@page\else
+  \vspace*{\fill}
+    \thispagestyle{empty}
+    \newpage
+    \if@twocolumn\hbox{}\newpage\fi\fi\fi}
+\makeatother
+
+
+%*********************** FORMATO DE LISTADOS **************************
+\lstset{
+  basicstyle=\tiny,
+  keywordstyle=\bfseries,
+  % underlined bold black keywords
+  identifierstyle=, % nothing happens
+%  commentstyle=\color{white}, % white comments
+  stringstyle=\ttfamily, % typewriter type for strings
+  showstringspaces=false,
+  frame=single,
+	language=Java,
+	numbers=left,
+	numberstyle=\tiny,
+	stepnumber=2,
+	numbersep=5pt
+}
+
+
+%*********************** FORMATO DE PÁGINA **************************
+%\pagewidth      210mm
+\textwidth     16.5cm  % Anchura del texto 14.5 cm
+\hoffset         -1in
+\oddsidemargin    2.5cm  % Margen izquierdo 4 cm
+\evensidemargin 2.5cm
+
+%\pageheight     297mm
+\textheight      22cm  % Altura del texto 22 cm
+\voffset         -1.8in
+\topmargin        2cm  %antes 2.5%Margen superior
+\headheight       1cm
+
+% Usaremos cabeceras:
+
+%% Si el formato es report a una sola cara
+
+%\pagestyle{fancy}
+
+%\lhead{\leftmark}
+%\chead{}
+%\rhead{\bfseries \thepage}
+
+\cfoot{}
+
+%% Si el formato es book (a doble cara)
+
+%\fancyhead{}
+%\fancyhead[LO,RE]{\bfseries \nouppercase{\leftmark}}
+%\fancyhead[LE,RO]{\bfseries \thepage}
+
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[RE]{{\small  \nouppercase{\leftmark}}}
+\fancyhead[LO]{{\small  \nouppercase{\rightmark}}}
+\fancyhead[LE,RO]{\thepage}
+
+%\newtheorem{definition}[theorem]{Definition.}
+\title{Síntesis de programas en Tinto v2014}
+
+\author{Francisco José Moreno Velo}
+\author{Gonzalo A. Aranda Corral}
+\author[2]{Pedro Morón Fernández}
+\affil[1]{Dept. Tecnologías de la Información}
+\affil[2]{Escuela Técnica Superior de Ingeniería}
+
+\pagestyle{fancy}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\addcontentsline{toc}{chapter}{\listfigurename}
+\listoffigures
+\listoftables
+
+\include{cod_original/cod_original}
+\include{bloquesbasicos/bloquesbasicos}
+\include{prop_constantes/prop_constantes}
+
+	
+\listoftodos
+\end{document}
