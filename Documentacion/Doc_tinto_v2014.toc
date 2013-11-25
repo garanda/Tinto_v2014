@@ -1,0 +1,5 @@
+\select@language {spanish}
+\contentsline {chapter}{\'{I}ndice de figuras}{3}{chapter*.1}
+\contentsline {chapter}{\numberline {1}Codigo original}{9}{chapter.1}
+\contentsline {chapter}{\numberline {2}Bloque b\IeC {\'a}sicos}{11}{chapter.2}
+\contentsline {chapter}{\numberline {3}Propagaci\IeC {\'o}n de constantes}{13}{chapter.3}
