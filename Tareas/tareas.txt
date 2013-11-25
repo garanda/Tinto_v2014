@@ -1,0 +1,6 @@
+Listado de tareas pendientes:
+
+1. crear version original
+2. terminar propagación constantes.
+3. Comenzar documentación…. ejemplos
+4. ...
