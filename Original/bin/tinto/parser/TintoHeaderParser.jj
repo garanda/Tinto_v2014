@@ -1,0 +1,469 @@
+options {
+  STATIC=false;
+}
+PARSER_BEGIN(TintoHeaderParser)
+//------------------------------------------------------------------//
+//                        COPYRIGHT NOTICE                          //
+//------------------------------------------------------------------//
+// Copyright (c) 2008, Francisco José Moreno Velo                   //
+// All rights reserved.                                             //
+//                                                                  //
+// Redistribution and use in source and binary forms, with or       //
+// without modification, are permitted provided that the following  //
+// conditions are met:                                              //
+//                                                                  //
+// * Redistributions of source code must retain the above copyright //
+//   notice, this list of conditions and the following disclaimer.  // 
+//                                                                  //
+// * Redistributions in binary form must reproduce the above        // 
+//   copyright notice, this list of conditions and the following    // 
+//   disclaimer in the documentation and/or other materials         // 
+//   provided with the distribution.                                //
+//                                                                  //
+// * Neither the name of the University of Huelva nor the names of  //
+//   its contributors may be used to endorse or promote products    //
+//   derived from this software without specific prior written      // 
+//   permission.                                                    //
+//                                                                  //
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND           // 
+// CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,      // 
+// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF         // 
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE         // 
+// DISCLAIMED. IN NO EVENT SHALL THE COPRIGHT OWNER OR CONTRIBUTORS //
+// BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,         // 
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED  //
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,    //
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND   // 
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT          //
+// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING   //
+// IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF   //
+// THE POSSIBILITY OF SUCH DAMAGE.                                  //
+//------------------------------------------------------------------//
+
+//------------------------------------------------------------------//
+//                      Universidad de Huelva                       //
+//          Departamento de Tecnologías de la Información           //
+//   Área de Ciencias de la Computación e Inteligencia Artificial   //
+//------------------------------------------------------------------//
+//                     PROCESADORES DE LENGUAJE                     //
+//------------------------------------------------------------------//
+//                                                                  //
+//          Compilador del lenguaje Tinto [Versión 0.1]             //
+//                                                                  //
+//------------------------------------------------------------------//
+
+
+package tinto.parser;
+
+import tinto.ast.Type;
+import tinto.ast.struct.*;
+
+/**
+ * Clase que extrae la cabecera de una biblioteca de funciones
+ * a partir de un fichero fuente ".tinto"
+ */
+public class TintoHeaderParser {
+
+	//----------------------------------------------------------------//
+	//                        Miembros privados                       //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Contador de errores
+	 */
+	private int errorCount;
+	
+	/**
+	 * Mensaje de errores
+	 */
+	private String errorMsg;
+
+	//----------------------------------------------------------------//
+	//    Método de análisis de ficheros fuente en lenguaje Tinto     //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Analiza un fichero fuente de titno y extrae la cabecera de la biblioteca
+	 */
+	public Library parse(String libname) {
+		try {
+			return CompilationUnit(libname);
+		} catch(Exception e) {
+			return null;
+		}
+	}
+	
+	//----------------------------------------------------------------//
+	//       Métodos relacionados con el tratamiento de errores       //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Obtiene el número de errores del análisis
+	 * @return
+	 */
+	public int getErrorCount() {
+		return this.errorCount;
+	}
+	
+	/**
+	 * Obtiene el mensaje de error del análisis
+	 * @return
+	 */
+	public String getErrorMsg() {
+		return this.errorMsg;
+	}
+	
+	/**
+	 * Almacena un error de análisis
+	 * @param ex
+	 */
+	private void catchError(Exception ex) {
+		ex.printStackTrace();
+		this.errorCount++;
+		this.errorMsg += ex.toString();
+	}
+
+	//----------------------------------------------------------------//
+	//                Métodos de verificación semántica               //
+	//----------------------------------------------------------------//
+
+	/**
+	 * Verifica que el nombre de la biblioteca corresponde al nombre del
+	 * fichero ".tinto" 
+	 */
+	private void verifyLibraryName(Token tk, Library library) {
+		if(!tk.image.equals(library.getName())){
+			int errorcode = SemanticException.LIBRARY_NAME_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+	
+	/**
+	 * Verifica que un cierto método no haya sido definido previamente
+	 */
+	private void verifyDuplicatedMethod(Token tk, Method method, Library library) {
+		int[] type = method.getArgumentTypes();
+		Method dup = library.getMethod(tk.image,type);
+		if(dup != null) {
+			int errorcode = SemanticException.DUPLICATED_METHOD_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+	
+	/**
+	 * Verifica que el nombre de un argumento de un método no esté duplicado
+	 */
+	private void verifyDuplicatedArgument(Token tk, Method method) {
+		Variable arg = method.getArgument(tk.image);
+		if(arg != null) {	
+			int errorcode = SemanticException.DUPLICATED_ARGUMENT_EXCEPTION;
+			catchError(new SemanticException(errorcode,tk));
+		}
+	}
+}
+
+PARSER_END(TintoHeaderParser)
+
+
+/* WHITE SPACE */
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| "\f"
+}
+
+/* COMMENTS */
+
+SKIP :
+{
+  <SINGLE_LINE_COMMENT: "//" ( ~["\n","\r"] )* ("\n" | "\r" | "\r\n") >
+|
+  <MULTI_LINE_COMMENT: "/*" ( ~["*"] | ("*")+ ~["*","/"] )* ("*")+ "/" >
+}
+
+
+/* RESERVED WORDS */
+
+TOKEN :
+{
+  < BOOLEAN: "boolean" >
+| < BREAK: "break">
+| < CASE: "case">
+| < CHAR: "char" >
+| < CONTINUE: "continue">
+| < OTHERCASE: "default">
+| < DO: "do" >
+| < ELSE: "else" >
+| < FALSE: "false" >
+| < FOR: "for" >
+| < IF: "if" >
+| < IMPORT: "import" >
+| < INT: "int" >
+| < LIBRARY: "library" >
+| < RETURN: "return" >
+| < SWITCH: "switch">
+| < TRUE: "true" >
+| < VOID: "void" >
+| < WHILE: "while" >
+}
+
+/* LITERALS */
+
+TOKEN :
+{
+  < INTEGER_LITERAL: ( <DECIMAL_LITERAL> | <HEX_LITERAL> | <OCTAL_LITERAL> ) >
+|
+  < #DECIMAL_LITERAL: ["1"-"9"] (["0"-"9"])* >
+|
+  < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
+|
+  < #OCTAL_LITERAL: "0" (["0"-"7"])* >
+|
+  < CHAR_LITERAL:
+      "'"
+      (   (~["'","\\","\n","\r"])
+        | ("\\"
+            ( ["n","t","b","r","f","\\","'","\""]
+            | ["0"-"7"] ( ["0"-"7"] )?
+            | ["0"-"3"] ["0"-"7"] ["0"-"7"]
+            )
+          )
+      )
+      "'"
+  >
+}
+
+/* IDENTIFIERS */
+
+TOKEN :
+{
+  < IDENTIFIER: ["a"-"z","A"-"Z","_"] ( ["a"-"z","A"-"Z","0"-"9","_"] )* >
+}
+
+/* SEPARATORS */
+
+TOKEN :
+{
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < LBRACE: "{" >
+| < RBRACE: "}" >
+| < SEMICOLON: ";" >
+| < COLON: ":">
+| < COMMA: "," >
+| < DOT: "." >
+}
+
+/* OPERATORS */
+
+TOKEN :
+{
+  < ASSIGN: "=" >
+| < EQ: "==" >
+| < LE: "<=" >
+| < GT: ">" >
+| < LT: "<" >
+| < GE: ">=" >
+| < NE: "!=" >
+| < OR: "||" >
+| < AND: "&&" >
+| < NOT: "!" >
+| < PLUS: "+" >
+| < MINUS: "-" >
+| < PROD: "*" >
+| < DIV: "/" >
+| < MOD: "%" >
+| < BIT_AND: "&" >
+| < BIT_OR: "|" >
+| < XOR: "^" >
+| < TILDE: "~" >
+| < LSHIFT: "<<" >
+| < RUNSIGNEDSHIFT: ">>>" >
+| < RSIGNEDSHIFT: ">>" >
+}
+
+
+/**************************************************************/
+/*         EL ANÁLISIS DE LA CABECERA COMIENZA AQUÍ           */
+/**************************************************************/
+
+/**
+ * Reconoce el contenido completo de un archivo ".tinto" y genera un objeto Library
+ *
+ * CompilationUnit -> (InportClause)* Library
+ */
+Library CompilationUnit(String name):
+{
+  Library library = new Library(name);
+}
+{
+  ( ImportClause(library) )*  Library(library)
+	
+	{ return library; }
+}
+
+/**
+ * Reconoce una claúsula de importación y la incluye en la biblioteca
+ *
+ * ImportClause -> <IMPORT>  <IDENTIFIER>  <SEMICOLON>
+ */
+void ImportClause(Library library):
+{
+  int[] lsync = { SEMICOLON };
+  int[] rsync = { IMPORT, LIBRARY };
+  Token tid;
+}
+{
+  try {  
+  	      <IMPORT>  
+  	tid = <IDENTIFIER>  
+  	      <SEMICOLON>
+  	
+  	{ library.addImportedLibrary(tid.image); }
+  	  
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+}
+
+/**
+ * Reconoce el cuerpo de una biblioteca
+ *
+ * Library -> <LIBRARY>  <IDENTIFIER> <LBRACE> ( Method )* <RBRACE>
+ */
+void Library(Library library) :
+{
+  int[] lsync = { };
+  int[] rsync = { };
+  Token tid;
+}
+{
+  try {  
+  	      <LIBRARY>  
+  	tid = <IDENTIFIER>  { verifyLibraryName(tid,library); } 
+  	      <LBRACE> 
+  	      ( Method(library) )* 
+  	      <RBRACE> 
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+}
+
+/**
+ * Reconoce un método de la biblioteca
+ *
+ * Method -> MethodType <IDENTIFIER>  ArgumentDecl MethodBody
+ */
+void Method(Library library) :
+{
+  int type;
+  Token tid;
+  Method method;
+}
+{
+  type = MethodType() 
+   tid = <IDENTIFIER>         { method = new Method(type, tid.image, library.getName() ); }	  
+         ArgumentDecl(method) { verifyDuplicatedMethod(tid,method,library); } 
+         MethodBody()
+  
+	{ library.addMethod(method); }
+}
+
+/**
+ * Reconoce el tipo de dato que devuelve un método
+ *
+ * MethodType -> Type | <VOID>
+ */
+int MethodType() :
+{
+  int type;
+}
+{
+   type = Type() { return type; }
+ | <VOID> { return Type.VOID_TYPE; }
+}
+
+/**
+ * Reconoce el tipo de dato de una variable
+ *
+ * Type -> <INT> | <CHAR> | <BOOLEAN>
+ */  
+int Type() :
+{}
+{
+   <INT> 		{ return Type.INT_TYPE; }      
+ | <CHAR>     	{ return Type.CHAR_TYPE; }
+ | <BOOLEAN>  	{ return Type.BOOLEAN_TYPE; }
+}
+
+/**
+ * Reconoce la declaración de argumentos de un método
+ *
+ * ArgumentDecl -> <LPAREN>  (  Argument ( <COMMA>  Argument )* )?  <RPAREN>
+ */
+void ArgumentDecl(Method method) :
+{
+  int[] lsync = { RPAREN };
+  int[] rsync = { LBRACE };
+}
+{
+   try {  <LPAREN>  (  Argument(method) ( <COMMA>  Argument(method) )* )?  <RPAREN> }
+   catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }  
+}
+
+/**
+ * Reconoce la declaración de un argumento
+ *
+ * Argument -> Type <IDENTIFIER>
+ */
+void Argument(Method method) :
+{ 
+  int[] lsync = { };
+  int[] rsync = { COMMA, RPAREN };
+  int type;
+  Token tid;
+}
+{
+  try {  
+  	type = Type()  
+  	tid  = <IDENTIFIER>
+  	
+  	{ verifyDuplicatedArgument(tid,method); method.addArgument(new Variable(type, tid.image) ); }
+  	  
+  }
+  catch(Exception ex) { catchError(ex); skipTo(lsync,rsync); }
+}
+
+
+JAVACODE
+void MethodBody() {
+  Token tk = getNextToken();  // Consume el caracter "{"
+  int level = 1;
+  while(level != 0) {
+    tk = getNextToken();
+	if(tk.kind == EOF) break;
+    else if(tk.kind == LBRACE) level ++;
+    else if(tk.kind == RBRACE) level --;
+   }
+}
+
+JAVACODE
+void skipTo(int[] left, int[] right) {
+  Token prev = getToken(0);
+  Token next = getToken(1);
+  boolean flag = false;
+  if(prev.kind == EOF || next.kind == EOF) flag = true;
+  for(int i=0; i<left.length; i++) if(prev.kind == left[i]) flag = true;
+  for(int i=0; i<right.length; i++) if(next.kind == right[i]) flag = true;
+	
+  while(!flag) {
+    getNextToken();
+    prev = getToken(0);
+    next = getToken(1);
+    if(prev.kind == EOF || next.kind == EOF) flag = true;
+    for(int i=0; i<left.length; i++) if(prev.kind == left[i]) flag = true;
+    for(int i=0; i<right.length; i++) if(next.kind == right[i]) flag = true;
+  }
+}

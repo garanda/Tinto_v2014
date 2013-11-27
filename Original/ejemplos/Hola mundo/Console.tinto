@@ -1,0 +1,10 @@
+
+library Console {
+  
+    void print(char c) {
+    }
+    
+    void print(int i) {
+    }
+    
+}

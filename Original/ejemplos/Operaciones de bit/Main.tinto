@@ -1,0 +1,14 @@
+
+import Console;
+
+library Main {
+
+  void Main() {
+	int a = -4;
+	int b = 3;
+	int c = ~b ^ a | b & b << a >>> b >> 1;
+
+	Console.print(c);
+
+  }
+}

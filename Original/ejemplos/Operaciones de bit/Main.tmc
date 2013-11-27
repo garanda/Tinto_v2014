@@ -1,0 +1,23 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	assign tmp_0, 0x4                                ; tmp_0 <- 4
+	inv tmp_1, tmp_0                                 ; tmp_1 <-  -tmp_0
+	assign local_0, tmp_1                            ; a <- tmp_1
+	assign tmp_2, 0x3                                ; tmp_2 <- 3
+	assign local_1, tmp_2                            ; b <- tmp_2
+	comp tmp_5, local_1
+	xor tmp_4, tmp_5, local_0
+	lshift tmp_9, local_1, local_0
+	runsignedshift tmp_8, tmp_9, local_1
+	assign tmp_10, 0x1                               ; tmp_10 <- 1
+	rsignedshift tmp_7, tmp_8, tmp_10
+	bitand tmp_6, local_1, tmp_7
+	bitor tmp_3, tmp_4, tmp_6
+	assign local_2, tmp_3                            ; c <- tmp_3
+	precall 0x4
+	param local_2, 0x0                               ; param[0] <- c
+	call tmp_11, Console_print_0                     ; tmp_11 <- Console_print_0()
+;
+;
