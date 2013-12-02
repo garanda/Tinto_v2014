@@ -77,6 +77,15 @@ public class CodeLiteral extends CodeAddress {
 	}
 	
 	/**
+	 * Constructor para un valor descrito en hexadecimal
+	 * @param val
+	 */
+	public CodeLiteral(String val) {
+		this.value = val;
+		this.svalue = ""+Integer.decode(val);
+	}
+	
+	/**
 	 * Obtiene la descripción de la "dirección"
 	 */
 	public String toString() {

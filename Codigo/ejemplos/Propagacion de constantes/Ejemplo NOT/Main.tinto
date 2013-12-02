@@ -1,0 +1,13 @@
+
+library Main {
+
+  void Main() {
+	boolean l = true; 
+    boolean a = not(l);
+  }
+  
+  boolean not(boolean a) {
+	return !a;
+  }
+  
+}

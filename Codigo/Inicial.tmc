@@ -1,0 +1,20 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	assign local_0, 0x7                              ; mayor <- 7
+	sub tmp_0, 0x7, local_1                          ; tmp_0 <- 7 - menor
+	assign local_2, tmp_0                            ; asdsde <- tmp_0
+	assign local_3, 0x1                              ; a <- 1
+	assign local_4, 0x0                              ; b <- 0
+	jmp1 Main_Main_3, local_3                        ; if(a==1) jump Main_Main_3
+	jump Main_Main_2                                 ; jump Main_Main_2
+Main_Main_3:
+	jmp1 Main_Main_1, local_4                        ; if(b==1) jump Main_Main_1
+	jump Main_Main_2                                 ; jump Main_Main_2
+Main_Main_1:
+	assign local_1, 0x7                              ; menor <- 7
+Main_Main_2:
+	assign local_5, 0x0                              ; c <- 0
+;
+;

@@ -67,6 +67,11 @@ public class CodeVariable extends CodeAddress {
 	 * Nombre original de la variable
 	 */
 	private String des;
+		
+	/**
+	 * Descripcion de valor en decimal
+	 */
+	private String value;
 	
 	/**
 	 * Localización de la variable dentro del registro de activación del método
@@ -88,7 +93,37 @@ public class CodeVariable extends CodeAddress {
 		this.name = name;
 		this.des = des;
 		this.location = 0;
-		this.inRegister = false;		
+		this.inRegister = false;
+		this.value = null;
+	}
+	
+	/**
+	 * Constructor
+	 * @param name
+	 * @param des;
+	 */
+	public CodeVariable(String name, String des, String value) {
+		this.name = name;
+		this.des = des;
+		this.location = 0;
+		this.inRegister = false;
+		this.value = value;
+	}
+
+	/**
+	 * Obtiene el valor de la variable
+	 * @return
+	 */
+	public String getValue() {
+		return this.value;
+	}
+	
+	/**
+	 * Asigna el valor de la variable
+	 * @param name
+	 */
+	public void setValue(String value) {
+		this.value = value;
 	}
 	
 	/**

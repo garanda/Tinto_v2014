@@ -201,7 +201,7 @@ public class MethodCodification implements CodeConstants {
 		this.var = aux;
 		return tmp;
 	}
-	
+		
 	/**
 	 * Obtiene una variable a partir de su referencia en el AST
 	 * @return

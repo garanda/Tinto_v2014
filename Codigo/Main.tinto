@@ -1,15 +1,15 @@
 
-import Console;
-
 library Main {
 
   void Main() {
-    boolean a = true;
-	boolean b = false;
-	boolean c = true&&false;
-	boolean d = true||false;
+	int mayor = 7;
+	int menor;
+	int asdsde = mayor - menor;
 	
-
+	boolean a = true;
+	boolean b = false;
+	if (a&&b) menor = mayor;
+	boolean c = a && b;
   }
   
 }

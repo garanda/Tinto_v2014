@@ -70,11 +70,6 @@ public class Variable {
 	 * Identificador de la variable
 	 */
 	private String name;
-	
-	/**
-	 * Valor de la variable
-	 */
-	private String value;
 
 	//----------------------------------------------------------------//
 	//                            Constructores                       //
@@ -89,20 +84,6 @@ public class Variable {
 	public Variable(int type,String name) {
 		this.type = type;
 		this.name = name.toString();
-		this.value = null;
-	}
-	
-	/**
-	 * Constructor de una variable de tipo simple
-	 * 
-	 * @param type
-	 * @param name
-	 * @param value
-	 */
-	public Variable(int type,String name, String value) {
-		this.type = type;
-		this.name = name.toString();
-		this.value = value;
 	}
 	
 	//----------------------------------------------------------------//
@@ -131,22 +112,6 @@ public class Variable {
 	 */
 	public void setName(String name) {
 		this.name = name.toString();
-	}
-	
-	/**
-	 * Obtiene el valor de la variable
-	 * @return
-	 */
-	public String getValue() {
-		return this.value;
-	}
-	
-	/**
-	 * Asigna el valor de la variable
-	 * @param name
-	 */
-	public void setValue(String value) {
-		this.value = value.toString();
 	}
 	
 	/**

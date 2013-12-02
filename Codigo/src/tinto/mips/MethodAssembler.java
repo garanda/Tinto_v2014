@@ -646,8 +646,8 @@ public class MethodAssembler {
 	 * @return
 	 */
 	private Register translateLoadLiteral(Vector<Instruction> vector, CodeLiteral literal, Register r) {
-		String  hex = literal.getHexDescription();
-		int value = Integer.parseInt(hex, 16);
+		String  dec = literal.getDescription();
+		int value = Integer.parseInt(dec, 10);
 		if(value>0x0FFFF) { // Valores mayores de 16 bits
 			int upper = (value & 0xFFFF0000)>>16;
 	        int lower = (value & 0x0000FFFF);

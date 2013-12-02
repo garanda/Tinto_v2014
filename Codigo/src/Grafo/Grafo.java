@@ -17,7 +17,7 @@ public class Grafo {
 		// Almacenamos el codigo intermedio
 		codigoIntermedio=ci;
 		//Grabamos los datos originales en un fichero
-		grabarFicheroTMC("Original");
+		grabarFicheroTMC("Inicial");
 		
 		//Indentificamos las instrucciones lideres
 		marcarLideres();
@@ -26,7 +26,7 @@ public class Grafo {
 		BloqueInicial bloque = generarBloques();
 		
 		//Grabamos el grafo en un fichero
-		grabarFicheroDOT("Original", bloque);
+		grabarFicheroDOT("Inicial", bloque);
 		
 		return bloque;
 		
