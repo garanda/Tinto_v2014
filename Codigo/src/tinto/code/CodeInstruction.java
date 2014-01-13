@@ -158,7 +158,7 @@ public class CodeInstruction implements CodeConstants {
 	 * Obtiene el nombre correspondiente al tipo de la instrucción 
 	 * @return
 	 */
-	private String getInstructionName() {
+	public String getInstructionName() {
 		switch(kind) {
 			case LABEL:  return "";
 			case ASSIGN: return "assign";

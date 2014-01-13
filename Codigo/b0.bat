@@ -1,0 +1,1 @@
+dot -Tpng -O B0.gda

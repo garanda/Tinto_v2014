@@ -63,6 +63,8 @@ import tinto.ast.statement.*;
  */
 public class CodeGenerator implements CodeConstants {
 
+	public static boolean propagaciondeconstantes = false;
+	
 	/**
 	 * Constructor
 	 *
@@ -570,98 +572,89 @@ public class CodeGenerator implements CodeConstants {
 	 * resultado a una variable
 	 */
 	private CodeAddress generateCodeForBooleanExpression(MethodCodification mc, Expression exp, CodeInstructionList codelist) {
-		CodeAddress target = null;
-		
-		if (exp instanceof UnaryExpression) { // NEGACION
-			Expression e = ((UnaryExpression) exp).getExpression();
-			CodeAddress source = generateCodeForExpression(mc, e, codelist);
+		if (!propagaciondeconstantes) {
+			CodeLabel lbTrue = mc.getNewLabel();
+			CodeLabel lbFalse = mc.getNewLabel();
+			CodeLabel lbNext = mc.getNewLabel();
 			
-			if (source instanceof CodeLiteral) {
-				int value = Integer.parseInt(((CodeLiteral) source).getDescription());
-				value = (value==1 ? 0 : 1);
-				target = new CodeLiteral(value);
-				return target;
-			} else {
-				String value = ((CodeVariable) source).getValue();
-				if (value!=null) {
-					int val = Integer.parseInt(((CodeVariable) source).getValue());
-					val = (val==1 ? 0 : 1);
-					target = new CodeLiteral(val);
+			CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
+			CodeInstruction lbFalseInst = new CodeInstruction(LABEL, lbFalse, null, null);
+			CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+			
+			CodeVariable target = mc.getNewTemp();
+			CodeLiteral valueTrue = new CodeLiteral(1);
+			CodeLiteral valueFalse = new CodeLiteral(0);
+			
+			CodeInstructionList code = generateCodeForCondition(mc,exp,lbTrue,lbFalse);
+			code.addInstruction(lbTrueInst);
+			code.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+			code.addInstruction(new CodeInstruction(JUMP,lbNext, null, null));
+			code.addInstruction(lbFalseInst);
+			code.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+			code.addInstruction(lbNextInst);
+			
+			codelist.addInstructionList(code.getList());
+			return target;
+		} else {
+			CodeAddress target = null;
+			
+			if (exp instanceof UnaryExpression) { // NEGACION
+				Expression e = ((UnaryExpression) exp).getExpression();
+				CodeAddress source = generateCodeForExpression(mc, e, codelist);
+				
+				if (source instanceof CodeLiteral) {
+					int value = Integer.parseInt(((CodeLiteral) source).getDescription());
+					value = (value==1 ? 0 : 1);
+					target = new CodeLiteral(value);
 					return target;
 				} else {
-					CodeLabel lbTrue = mc.getNewLabel();
-					CodeLabel lbFalse = mc.getNewLabel();
-					CodeLabel lbNext = mc.getNewLabel();
-					
-					CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
-					CodeInstruction lbFalseInst = new CodeInstruction(LABEL, lbFalse, null, null);
-					CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
-					
-					target = mc.getNewTemp();
-					CodeLiteral valueTrue = new CodeLiteral(1);
-					CodeLiteral valueFalse = new CodeLiteral(0);
-					
-					CodeInstructionList code = new CodeInstructionList();
-					code.addInstruction(new CodeInstruction(JMP1,lbFalse,source, null));
-					code.addInstruction(new CodeInstruction(JUMP,lbTrue, null, null));
-					code.addInstruction(lbTrueInst);
-					code.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
-					code.addInstruction(new CodeInstruction(JUMP,lbNext, null, null));
-					code.addInstruction(lbFalseInst);
-					code.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
-					code.addInstruction(lbNextInst);
-					
-					codelist.addInstructionList(code.getList());
-					return target;
+					String value = ((CodeVariable) source).getValue();
+					if (value!=null) {
+						int val = Integer.parseInt(((CodeVariable) source).getValue());
+						val = (val==1 ? 0 : 1);
+						target = new CodeLiteral(val);
+						return target;
+					} else {
+						CodeLabel lbTrue = mc.getNewLabel();
+						CodeLabel lbFalse = mc.getNewLabel();
+						CodeLabel lbNext = mc.getNewLabel();
+						
+						CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
+						CodeInstruction lbFalseInst = new CodeInstruction(LABEL, lbFalse, null, null);
+						CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+						
+						target = mc.getNewTemp();
+						CodeLiteral valueTrue = new CodeLiteral(1);
+						CodeLiteral valueFalse = new CodeLiteral(0);
+						
+						CodeInstructionList code = new CodeInstructionList();
+						code.addInstruction(new CodeInstruction(JMP1,lbFalse,source, null));
+						code.addInstruction(new CodeInstruction(JUMP,lbTrue, null, null));
+						code.addInstruction(lbTrueInst);
+						code.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+						code.addInstruction(new CodeInstruction(JUMP,lbNext, null, null));
+						code.addInstruction(lbFalseInst);
+						code.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+						code.addInstruction(lbNextInst);
+						
+						codelist.addInstructionList(code.getList());
+						return target;
+					}
 				}
-			}
-			
-		} else { // AND, OR Y COMPARACIONES
-			Expression left = ((BinaryExpression) exp).getLeftExpression();
-			Expression right = ((BinaryExpression) exp).getRightExpression();
-			CodeAddress source1 = generateCodeForExpression(mc,left,codelist);
-			CodeAddress source2 = generateCodeForExpression(mc,right,codelist);
-			
-			int op = ((BinaryExpression) exp).getOperator();
-			
-			switch (op) {
-				case BinaryExpression.OR: 
-				case BinaryExpression.AND: 
-						if (source1 instanceof CodeLiteral) { //Si el primer operando es un literal
-							int value = Integer.parseInt(source1.getDescription());
-							boolean s1 = (value==1);
-							
-							// Intentamos resolver usando el primer operando
-							if (s1 == false && op == BinaryExpression.AND) {
-								target = new CodeLiteral(0);
-								return target;
-							}
-							if (s1 == true && op == BinaryExpression.OR) {
-								target = new CodeLiteral(1);
-								return target;
-							}
-							
-							//Resolvemos usando el segundo operando
-							if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
-								value = Integer.parseInt(source2.getDescription());
-								target = new CodeLiteral(value);
-								return target;
-							} else { //Si el segundo operando es una variable
-								String val = ((CodeVariable)source2).getValue();
-								if (val != null) { //Si tiene valor
-									value = Integer.parseInt(val);
-									target = new CodeLiteral(value);
-									return target;
-								} else {
-									return source2;
-								}
-							}
-							
-						} else { //Si el primer operando es una variable
-							String val = ((CodeVariable)source1).getValue();
-							
-							if (val != null) { //Si tiene valor
-								int value = Integer.parseInt(val);
+				
+			} else { // AND, OR Y COMPARACIONES
+				Expression left = ((BinaryExpression) exp).getLeftExpression();
+				Expression right = ((BinaryExpression) exp).getRightExpression();
+				CodeAddress source1 = generateCodeForExpression(mc,left,codelist);
+				CodeAddress source2 = generateCodeForExpression(mc,right,codelist);
+				
+				int op = ((BinaryExpression) exp).getOperator();
+				
+				switch (op) {
+					case BinaryExpression.OR: 
+					case BinaryExpression.AND: 
+							if (source1 instanceof CodeLiteral) { //Si el primer operando es un literal
+								int value = Integer.parseInt(source1.getDescription());
 								boolean s1 = (value==1);
 								
 								// Intentamos resolver usando el primer operando
@@ -680,7 +673,7 @@ public class CodeGenerator implements CodeConstants {
 									target = new CodeLiteral(value);
 									return target;
 								} else { //Si el segundo operando es una variable
-									val = ((CodeVariable)source2).getValue();
+									String val = ((CodeVariable)source2).getValue();
 									if (val != null) { //Si tiene valor
 										value = Integer.parseInt(val);
 										target = new CodeLiteral(value);
@@ -690,28 +683,43 @@ public class CodeGenerator implements CodeConstants {
 									}
 								}
 								
-							} else { //Si no tiene valor
-								if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
-									// Intentamos resolver usando el segundo operando
-									int value = Integer.parseInt(source2.getDescription());
-									boolean s2 = (value==1);
-									if (s2 == false && op == BinaryExpression.AND) {
+							} else { //Si el primer operando es una variable
+								String val = ((CodeVariable)source1).getValue();
+								
+								if (val != null) { //Si tiene valor
+									int value = Integer.parseInt(val);
+									boolean s1 = (value==1);
+									
+									// Intentamos resolver usando el primer operando
+									if (s1 == false && op == BinaryExpression.AND) {
 										target = new CodeLiteral(0);
 										return target;
 									}
-									if (s2 == true && op == BinaryExpression.OR) {
+									if (s1 == true && op == BinaryExpression.OR) {
 										target = new CodeLiteral(1);
 										return target;
 									}
 									
-									// Lo dejamos en funcion del primer operando
-									return source1;
+									//Resolvemos usando el segundo operando
+									if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
+										value = Integer.parseInt(source2.getDescription());
+										target = new CodeLiteral(value);
+										return target;
+									} else { //Si el segundo operando es una variable
+										val = ((CodeVariable)source2).getValue();
+										if (val != null) { //Si tiene valor
+											value = Integer.parseInt(val);
+											target = new CodeLiteral(value);
+											return target;
+										} else {
+											return source2;
+										}
+									}
 									
-								} else { //Si el segundo operando es una variable
-									val = ((CodeVariable)source2).getValue();
-									if (val != null) { //Si tiene valor
+								} else { //Si no tiene valor
+									if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
 										// Intentamos resolver usando el segundo operando
-										int value = Integer.parseInt(val);
+										int value = Integer.parseInt(source2.getDescription());
 										boolean s2 = (value==1);
 										if (s2 == false && op == BinaryExpression.AND) {
 											target = new CodeLiteral(0);
@@ -724,130 +732,84 @@ public class CodeGenerator implements CodeConstants {
 										
 										// Lo dejamos en funcion del primer operando
 										return source1;
-									} else { //Si ninguno tiene valor
-										// Lo dejamos en funcion de ambos
 										
-										target = mc.getNewTemp();
-										CodeLiteral valueTrue = new CodeLiteral(1);
-										CodeLiteral valueFalse = new CodeLiteral(0);
-										CodeInstructionList code = new CodeInstructionList();
-										
-										if(op == BinaryExpression.AND) {	
-											CodeLabel lbTrue1 = mc.getNewLabel();
-											CodeLabel lbTrue2 = mc.getNewLabel();
-											CodeLabel lbFalse = mc.getNewLabel();
-											CodeLabel lbNext = mc.getNewLabel();
+									} else { //Si el segundo operando es una variable
+										val = ((CodeVariable)source2).getValue();
+										if (val != null) { //Si tiene valor
+											// Intentamos resolver usando el segundo operando
+											int value = Integer.parseInt(val);
+											boolean s2 = (value==1);
+											if (s2 == false && op == BinaryExpression.AND) {
+												target = new CodeLiteral(0);
+												return target;
+											}
+											if (s2 == true && op == BinaryExpression.OR) {
+												target = new CodeLiteral(1);
+												return target;
+											}
 											
-											CodeInstruction lbTrue1Inst = new CodeInstruction(LABEL, lbTrue1, null, null);
-											CodeInstruction lbTrue2Inst = new CodeInstruction(LABEL, lbTrue2, null, null);
-											CodeInstruction lbFalseInst = new CodeInstruction(LABEL, lbFalse, null, null);
-											CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+											// Lo dejamos en funcion del primer operando
+											return source1;
+										} else { //Si ninguno tiene valor
+											// Lo dejamos en funcion de ambos
 											
-											code.addInstruction(new CodeInstruction(JMP1,lbTrue1,source1, null));
-											code.addInstruction(new CodeInstruction(JUMP,lbFalse, null, null));
-											code.addInstruction(lbTrue1Inst);
-											code.addInstruction(new CodeInstruction(JMP1,lbTrue2,source2, null));
-											code.addInstruction(new CodeInstruction(JUMP,lbFalse, null, null));
-											code.addInstruction(lbTrue2Inst);
-											code.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
-											code.addInstruction(new CodeInstruction(JUMP,lbNext, null, null));
-											code.addInstruction(lbFalseInst);
-											code.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
-											code.addInstruction(lbNextInst);
-										} else if(op == BinaryExpression.OR) {
-											CodeLabel lbTrue = mc.getNewLabel();
-											CodeLabel lbNext = mc.getNewLabel();
+											target = mc.getNewTemp();
+											CodeLiteral valueTrue = new CodeLiteral(1);
+											CodeLiteral valueFalse = new CodeLiteral(0);
+											CodeInstructionList code = new CodeInstructionList();
 											
-											CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
-											CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
-											
-											code.addInstruction(new CodeInstruction(JMP1,lbTrue,source1, null));
-											code.addInstruction(new CodeInstruction(JMP1,lbTrue,source2, null));
-											code.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
-											code.addInstruction(new CodeInstruction(JUMP,lbNext, null, null));
-											code.addInstruction(lbTrueInst);
-											code.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
-											code.addInstruction(lbNextInst);
+											if(op == BinaryExpression.AND) {	
+												CodeLabel lbTrue1 = mc.getNewLabel();
+												CodeLabel lbTrue2 = mc.getNewLabel();
+												CodeLabel lbFalse = mc.getNewLabel();
+												CodeLabel lbNext = mc.getNewLabel();
+												
+												CodeInstruction lbTrue1Inst = new CodeInstruction(LABEL, lbTrue1, null, null);
+												CodeInstruction lbTrue2Inst = new CodeInstruction(LABEL, lbTrue2, null, null);
+												CodeInstruction lbFalseInst = new CodeInstruction(LABEL, lbFalse, null, null);
+												CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+												
+												code.addInstruction(new CodeInstruction(JMP1,lbTrue1,source1, null));
+												code.addInstruction(new CodeInstruction(JUMP,lbFalse, null, null));
+												code.addInstruction(lbTrue1Inst);
+												code.addInstruction(new CodeInstruction(JMP1,lbTrue2,source2, null));
+												code.addInstruction(new CodeInstruction(JUMP,lbFalse, null, null));
+												code.addInstruction(lbTrue2Inst);
+												code.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+												code.addInstruction(new CodeInstruction(JUMP,lbNext, null, null));
+												code.addInstruction(lbFalseInst);
+												code.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+												code.addInstruction(lbNextInst);
+											} else if(op == BinaryExpression.OR) {
+												CodeLabel lbTrue = mc.getNewLabel();
+												CodeLabel lbNext = mc.getNewLabel();
+												
+												CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
+												CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+												
+												code.addInstruction(new CodeInstruction(JMP1,lbTrue,source1, null));
+												code.addInstruction(new CodeInstruction(JMP1,lbTrue,source2, null));
+												code.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+												code.addInstruction(new CodeInstruction(JUMP,lbNext, null, null));
+												code.addInstruction(lbTrueInst);
+												code.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+												code.addInstruction(lbNextInst);
+											}
+											codelist.addInstructionList(code.getList());
+											return target;
 										}
-										codelist.addInstructionList(code.getList());
-										return target;
 									}
-								}
-							}							
-						}
-				case BinaryExpression.GE:
-				case BinaryExpression.GT:
-				case BinaryExpression.LE:
-				case BinaryExpression.LT:
-				case BinaryExpression.EQ:
-				case BinaryExpression.NEQ:
-					if (source1 instanceof CodeLiteral) { //Si el primer operando es un literal
-						int s1 = Integer.parseInt(source1.getDescription());
-						
-						if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
-							int s2 = Integer.parseInt(source2.getDescription());
-							switch (op) {
-								case BinaryExpression.GE: target = new CodeLiteral((s1>=s2? 1:0));
-									return target;
-								case BinaryExpression.GT: target = new CodeLiteral((s1>s2? 1:0));
-									return target;
-								case BinaryExpression.LE: target = new CodeLiteral((s1<=s2? 1:0));
-									return target;
-								case BinaryExpression.LT: target = new CodeLiteral((s1<s2? 1:0));
-									return target;
-								case BinaryExpression.EQ: target = new CodeLiteral((s1==s2? 1:0));
-									return target;
-								case BinaryExpression.NEQ: target = new CodeLiteral((s1!=s2? 1:0));
-									return target;
+								}							
 							}
-						} else { //Si el segundo operando es una variable
-							String val = ((CodeVariable)source2).getValue();
-							if (val != null) { //Si tiene valor
-								int s2 = Integer.parseInt(val);
-								switch (op) {
-									case BinaryExpression.GE: target = new CodeLiteral((s1>=s2? 1:0));
-										return target;
-									case BinaryExpression.GT: target = new CodeLiteral((s1>s2? 1:0));
-										return target;
-									case BinaryExpression.LE: target = new CodeLiteral((s1<=s2? 1:0));
-										return target;
-									case BinaryExpression.LT: target = new CodeLiteral((s1<s2? 1:0));
-										return target;
-									case BinaryExpression.EQ: target = new CodeLiteral((s1==s2? 1:0));
-										return target;
-									case BinaryExpression.NEQ: target = new CodeLiteral((s1!=s2? 1:0));
-										return target;
-								}
-							} else {
-								target = mc.getNewTemp();
-								CodeLiteral valueTrue = new CodeLiteral(1);
-								CodeLiteral valueFalse = new CodeLiteral(0);
-								
-								CodeLabel lbTrue = mc.getNewLabel();
-								CodeLabel lbNext = mc.getNewLabel();
-								
-								CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
-								CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
-								
-								int operation = getBinaryCode(op);
-								
-								codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
-								codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
-								codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
-								codelist.addInstruction(lbTrueInst);
-								codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
-								codelist.addInstruction(lbNextInst);
-								
-								return target;							
-							}
-						}
-						
-					} else { //Si el primer operando es una variable
-						String val = ((CodeVariable)source1).getValue();
-						
-						if (val != null) { //Si tiene valor
-							int s1 = Integer.parseInt(val);
-				
+					case BinaryExpression.GE:
+					case BinaryExpression.GT:
+					case BinaryExpression.LE:
+					case BinaryExpression.LT:
+					case BinaryExpression.EQ:
+					case BinaryExpression.NEQ:
+						if (source1 instanceof CodeLiteral) { //Si el primer operando es un literal
+							int s1 = Integer.parseInt(source1.getDescription());
+							
 							if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
 								int s2 = Integer.parseInt(source2.getDescription());
 								switch (op) {
@@ -865,7 +827,7 @@ public class CodeGenerator implements CodeConstants {
 										return target;
 								}
 							} else { //Si el segundo operando es una variable
-								val = ((CodeVariable)source2).getValue();
+								String val = ((CodeVariable)source2).getValue();
 								if (val != null) { //Si tiene valor
 									int s2 = Integer.parseInt(val);
 									switch (op) {
@@ -883,7 +845,6 @@ public class CodeGenerator implements CodeConstants {
 											return target;
 									}
 								} else {
-									source1 = new CodeLiteral(s1);
 									target = mc.getNewTemp();
 									CodeLiteral valueTrue = new CodeLiteral(1);
 									CodeLiteral valueFalse = new CodeLiteral(0);
@@ -903,91 +864,157 @@ public class CodeGenerator implements CodeConstants {
 									codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
 									codelist.addInstruction(lbNextInst);
 									
-									return target;	
+									return target;							
 								}
 							}
 							
-						} else { //Si no tiene valor
-							if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
-
-								target = mc.getNewTemp();
-								CodeLiteral valueTrue = new CodeLiteral(1);
-								CodeLiteral valueFalse = new CodeLiteral(0);
-								
-								CodeLabel lbTrue = mc.getNewLabel();
-								CodeLabel lbNext = mc.getNewLabel();
-								
-								CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
-								CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
-								
-								int operation = getBinaryCode(op);
-								
-								codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
-								codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
-								codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
-								codelist.addInstruction(lbTrueInst);
-								codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
-								codelist.addInstruction(lbNextInst);
-								
-								return target;	
-								
-							} else { //Si el segundo operando es una variable
-								val = ((CodeVariable)source2).getValue();
-								if (val != null) { //Si tiene valor
-									// Intentamos resolver usando el segundo operando
-									int s2 = Integer.parseInt(val);
-
-									source2 = new CodeLiteral(s2);
-									target = mc.getNewTemp();
-									CodeLiteral valueTrue = new CodeLiteral(1);
-									CodeLiteral valueFalse = new CodeLiteral(0);
-									
-									CodeLabel lbTrue = mc.getNewLabel();
-									CodeLabel lbNext = mc.getNewLabel();
-									
-									CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
-									CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
-									
-									int operation = getBinaryCode(op);
-									
-									codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
-									codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
-									codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
-									codelist.addInstruction(lbTrueInst);
-									codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
-									codelist.addInstruction(lbNextInst);
-									
-									return target;	
-								} else { //Si ninguno tiene valor
-									target = mc.getNewTemp();
-									CodeLiteral valueTrue = new CodeLiteral(1);
-									CodeLiteral valueFalse = new CodeLiteral(0);
-									
-									CodeLabel lbTrue = mc.getNewLabel();
-									CodeLabel lbNext = mc.getNewLabel();
-									
-									CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
-									CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
-									
-									int operation = getBinaryCode(op);
-									
-									codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
-									codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
-									codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
-									codelist.addInstruction(lbTrueInst);
-									codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
-									codelist.addInstruction(lbNextInst);
-									
-									return target;	
+						} else { //Si el primer operando es una variable
+							String val = ((CodeVariable)source1).getValue();
+							
+							if (val != null) { //Si tiene valor
+								int s1 = Integer.parseInt(val);
+					
+								if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
+									int s2 = Integer.parseInt(source2.getDescription());
+									switch (op) {
+										case BinaryExpression.GE: target = new CodeLiteral((s1>=s2? 1:0));
+											return target;
+										case BinaryExpression.GT: target = new CodeLiteral((s1>s2? 1:0));
+											return target;
+										case BinaryExpression.LE: target = new CodeLiteral((s1<=s2? 1:0));
+											return target;
+										case BinaryExpression.LT: target = new CodeLiteral((s1<s2? 1:0));
+											return target;
+										case BinaryExpression.EQ: target = new CodeLiteral((s1==s2? 1:0));
+											return target;
+										case BinaryExpression.NEQ: target = new CodeLiteral((s1!=s2? 1:0));
+											return target;
+									}
+								} else { //Si el segundo operando es una variable
+									val = ((CodeVariable)source2).getValue();
+									if (val != null) { //Si tiene valor
+										int s2 = Integer.parseInt(val);
+										switch (op) {
+											case BinaryExpression.GE: target = new CodeLiteral((s1>=s2? 1:0));
+												return target;
+											case BinaryExpression.GT: target = new CodeLiteral((s1>s2? 1:0));
+												return target;
+											case BinaryExpression.LE: target = new CodeLiteral((s1<=s2? 1:0));
+												return target;
+											case BinaryExpression.LT: target = new CodeLiteral((s1<s2? 1:0));
+												return target;
+											case BinaryExpression.EQ: target = new CodeLiteral((s1==s2? 1:0));
+												return target;
+											case BinaryExpression.NEQ: target = new CodeLiteral((s1!=s2? 1:0));
+												return target;
+										}
+									} else {
+										source1 = new CodeLiteral(s1);
+										target = mc.getNewTemp();
+										CodeLiteral valueTrue = new CodeLiteral(1);
+										CodeLiteral valueFalse = new CodeLiteral(0);
+										
+										CodeLabel lbTrue = mc.getNewLabel();
+										CodeLabel lbNext = mc.getNewLabel();
+										
+										CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
+										CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+										
+										int operation = getBinaryCode(op);
+										
+										codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
+										codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+										codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
+										codelist.addInstruction(lbTrueInst);
+										codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+										codelist.addInstruction(lbNextInst);
+										
+										return target;	
+									}
 								}
-							}
-						}							
-					}
-					break;
+								
+							} else { //Si no tiene valor
+								if (source2 instanceof CodeLiteral) { //Si el segundo operando es un literal
+	
+									target = mc.getNewTemp();
+									CodeLiteral valueTrue = new CodeLiteral(1);
+									CodeLiteral valueFalse = new CodeLiteral(0);
+									
+									CodeLabel lbTrue = mc.getNewLabel();
+									CodeLabel lbNext = mc.getNewLabel();
+									
+									CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
+									CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+									
+									int operation = getBinaryCode(op);
+									
+									codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
+									codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+									codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
+									codelist.addInstruction(lbTrueInst);
+									codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+									codelist.addInstruction(lbNextInst);
+									
+									return target;	
+									
+								} else { //Si el segundo operando es una variable
+									val = ((CodeVariable)source2).getValue();
+									if (val != null) { //Si tiene valor
+										// Intentamos resolver usando el segundo operando
+										int s2 = Integer.parseInt(val);
+	
+										source2 = new CodeLiteral(s2);
+										target = mc.getNewTemp();
+										CodeLiteral valueTrue = new CodeLiteral(1);
+										CodeLiteral valueFalse = new CodeLiteral(0);
+										
+										CodeLabel lbTrue = mc.getNewLabel();
+										CodeLabel lbNext = mc.getNewLabel();
+										
+										CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
+										CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+										
+										int operation = getBinaryCode(op);
+										
+										codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
+										codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+										codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
+										codelist.addInstruction(lbTrueInst);
+										codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+										codelist.addInstruction(lbNextInst);
+										
+										return target;	
+									} else { //Si ninguno tiene valor
+										target = mc.getNewTemp();
+										CodeLiteral valueTrue = new CodeLiteral(1);
+										CodeLiteral valueFalse = new CodeLiteral(0);
+										
+										CodeLabel lbTrue = mc.getNewLabel();
+										CodeLabel lbNext = mc.getNewLabel();
+										
+										CodeInstruction lbTrueInst = new CodeInstruction(LABEL, lbTrue, null, null);
+										CodeInstruction lbNextInst = new CodeInstruction(LABEL, lbNext, null, null);
+										
+										int operation = getBinaryCode(op);
+										
+										codelist.addInstruction(new CodeInstruction(operation,lbTrue,source1,source2));
+										codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueFalse, null));
+										codelist.addInstruction(new CodeInstruction(JUMP,lbNext,null,null));
+										codelist.addInstruction(lbTrueInst);
+										codelist.addInstruction(new CodeInstruction(ASSIGN,target,valueTrue, null));
+										codelist.addInstruction(lbNextInst);
+										
+										return target;	
+									}
+								}
+							}							
+						}
+						break;
+				}
 			}
+			
+			return target;
 		}
-		
-		return target;
 		
 	}
 		
@@ -998,49 +1025,66 @@ public class CodeGenerator implements CodeConstants {
 	 * @return
 	 */
 	private CodeAddress generateCodeForUnaryExpression(MethodCodification mc, UnaryExpression exp, CodeInstructionList codelist) {
-		Expression operand = exp.getExpression();
+		if (!propagaciondeconstantes) {
+			Expression operand = exp.getExpression();
+			
+			CodeInstructionList code = new CodeInstructionList();
+			CodeAddress source = generateCodeForExpression(mc,operand,code);
+			CodeVariable target = mc.getNewTemp();
+			
+			if (exp.getOperator() == UnaryExpression.MINUS)
+				code.addInstruction(new CodeInstruction(INV,target,source,null));
+			else if (exp.getOperator() == UnaryExpression.TILDE)
+				code.addInstruction(new CodeInstruction(COMP,target,source,null));
+			
+			codelist.addInstructionList(code.getList());
 		
-		CodeInstructionList code = new CodeInstructionList();
-		CodeAddress source = generateCodeForExpression(mc,operand,code);
-		CodeAddress target = null;
-		
-		if (exp.getOperator() == UnaryExpression.MINUS) { //Operacion cambio de signo
-			if (source instanceof CodeLiteral) { //Si es un literal
-				int value = Integer.parseInt(source.getDescription());
-				value = -value;
-				target = new CodeLiteral(value);	
-			} else { //Si es una variable
-				String value = ((CodeVariable)source).getValue();
-				if (value != null) { //Si tiene un valor asignado
-					int val = Integer.parseInt(value);
-					val = -val;
-					target = new CodeLiteral(val);
-				} else { //Si no tiene un valor asignado
-					target = mc.getNewTemp();
-					code.addInstruction(new CodeInstruction(INV,target,source,null));
+			return target;	
+		} else {
+			Expression operand = exp.getExpression();
+			
+			CodeInstructionList code = new CodeInstructionList();
+			CodeAddress source = generateCodeForExpression(mc,operand,code);
+			CodeAddress target = null;
+			
+			if (exp.getOperator() == UnaryExpression.MINUS) { //Operacion cambio de signo
+				if (source instanceof CodeLiteral) { //Si es un literal
+					int value = Integer.parseInt(source.getDescription());
+					value = -value;
+					target = new CodeLiteral(value);	
+				} else { //Si es una variable
+					String value = ((CodeVariable)source).getValue();
+					if (value != null) { //Si tiene un valor asignado
+						int val = Integer.parseInt(value);
+						val = -val;
+						target = new CodeLiteral(val);
+					} else { //Si no tiene un valor asignado
+						target = mc.getNewTemp();
+						code.addInstruction(new CodeInstruction(INV,target,source,null));
+					}
+				}
+			} else if (exp.getOperator() == UnaryExpression.TILDE) { //Operacion complemento a 1
+				if (source instanceof CodeLiteral) { //Si es un literal
+					int value = Integer.parseInt(source.getDescription());
+					value = ~value;
+					target = new CodeLiteral(value);	
+				} else { //Si es una variable
+					String value = ((CodeVariable)source).getValue();
+					if (value != null) { //Si tiene un valor asignado
+						int val = Integer.parseInt(value);
+						val = ~val;
+						target = new CodeLiteral(val);
+					} else { //Si no tiene un valor asignado
+						target = mc.getNewTemp();
+						code.addInstruction(new CodeInstruction(COMP,target,source,null));
+					}
 				}
 			}
-		} else if (exp.getOperator() == UnaryExpression.TILDE) { //Operacion complemento a 1
-			if (source instanceof CodeLiteral) { //Si es un literal
-				int value = Integer.parseInt(source.getDescription());
-				value = ~value;
-				target = new CodeLiteral(value);	
-			} else { //Si es una variable
-				String value = ((CodeVariable)source).getValue();
-				if (value != null) { //Si tiene un valor asignado
-					int val = Integer.parseInt(value);
-					val = ~val;
-					target = new CodeLiteral(val);
-				} else { //Si no tiene un valor asignado
-					target = mc.getNewTemp();
-					code.addInstruction(new CodeInstruction(COMP,target,source,null));
-				}
-			}
-		}
-
-		codelist.addInstructionList(code.getList());
 	
-		return target;		
+			codelist.addInstructionList(code.getList());
+		
+			return target;		
+		}
 	}
 		
 	/**
@@ -1050,53 +1094,40 @@ public class CodeGenerator implements CodeConstants {
 	 * @return
 	 */
 	private CodeAddress generateCodeForBinaryExpression(MethodCodification mc, BinaryExpression exp, CodeInstructionList codelist) {
-		int operator = exp.getOperator();
-		Expression left = exp.getLeftExpression();
-		Expression right = exp.getRightExpression();
-		
-		CodeAddress target = null;
-		
-		CodeInstructionList code = new CodeInstructionList();
-		CodeAddress source1 = generateCodeForExpression(mc,left,code);
-		CodeAddress source2 = generateCodeForExpression(mc,right,code);
-		
-		int op = getBinaryCode(operator);
-		
-		if (source1 instanceof CodeLiteral) { // Si el primer operando es un literal
-			int s1 = Integer.parseInt(source1.getDescription());
+		if (!propagaciondeconstantes) {
+			int operator = exp.getOperator();
+			Expression left = exp.getLeftExpression();
+			Expression right = exp.getRightExpression();
 			
-			if (source2 instanceof CodeLiteral) { // Si el segundo operando es un literal	
-				int s2 = Integer.parseInt(source2.getDescription());
+			CodeVariable target = mc.getNewTemp();
 			
-				switch (op) {
-				case ADD: target = new CodeLiteral(s1+s2);
-					break;
-				case SUB: target = new CodeLiteral(s1-s2);
-					break;
-				case MUL: target = new CodeLiteral(s1*s2);
-					break;
-				case DIV: target = new CodeLiteral(s1/s2);
-					break;
-				case MOD: target = new CodeLiteral(s1%s2);
-					break;
-				case BIT_AND: target = new CodeLiteral(s1&s2);
-					break;
-				case BIT_OR: target = new CodeLiteral(s1|s2);
-					break;
-				case XOR: target = new CodeLiteral(s1^s2);
-					break;
-				case LSHIFT: target = new CodeLiteral(s1<<s2);
-					break;
-				case RSIGNEDSHIFT: target = new CodeLiteral(s1>>s2);
-					break;
-				case RUNSIGNEDSHIFT: target = new CodeLiteral(s1>>>s2);
-					break;
-				}
-			} else { // Si el segundo operando es una variable
-				String value = ((CodeVariable)source2).getValue();
-				if (value != null) { //Si tiene un valor asignado
-					int s2 = Integer.parseInt(value);
-					
+			CodeInstructionList code = new CodeInstructionList();
+			CodeAddress source1 = generateCodeForExpression(mc,left,code);
+			CodeAddress source2 = generateCodeForExpression(mc,right,code);
+			
+			int op = getBinaryCode(operator);
+			code.addInstruction(new CodeInstruction(op,target,source1,source2));
+			codelist.addInstructionList(code.getList());
+			return target;	
+		} else {
+			int operator = exp.getOperator();
+			Expression left = exp.getLeftExpression();
+			Expression right = exp.getRightExpression();
+			
+			CodeAddress target = null;
+			
+			CodeInstructionList code = new CodeInstructionList();
+			CodeAddress source1 = generateCodeForExpression(mc,left,code);
+			CodeAddress source2 = generateCodeForExpression(mc,right,code);
+			
+			int op = getBinaryCode(operator);
+			
+			if (source1 instanceof CodeLiteral) { // Si el primer operando es un literal
+				int s1 = Integer.parseInt(source1.getDescription());
+				
+				if (source2 instanceof CodeLiteral) { // Si el segundo operando es un literal	
+					int s2 = Integer.parseInt(source2.getDescription());
+				
 					switch (op) {
 					case ADD: target = new CodeLiteral(s1+s2);
 						break;
@@ -1121,54 +1152,11 @@ public class CodeGenerator implements CodeConstants {
 					case RUNSIGNEDSHIFT: target = new CodeLiteral(s1>>>s2);
 						break;
 					}
-				} else { // Si no tiene un valor asignado
-					target = mc.getNewTemp();
-					code.addInstruction(new CodeInstruction(op,target,source1,source2));
-					codelist.addInstructionList(code.getList());
-				}
-			}
-			
-		} else { // Si el primer operando es una variable
-			String value1 = ((CodeVariable)source1).getValue();
-			
-			if (value1 != null) { // Si tiene valor
-				int s1 = Integer.parseInt(value1);
-				
-				if (source2 instanceof CodeLiteral) { // Si el segundo operando es un literal
-					int s2 = Integer.parseInt(source2.getDescription());
-			
-					switch (op) {
-						case ADD: target = new CodeLiteral(s1+s2);
-							break;
-						case SUB: target = new CodeLiteral(s1-s2);
-							break;
-						case MUL: target = new CodeLiteral(s1*s2);
-							break;
-						case DIV: target = new CodeLiteral(s1/s2);
-							break;
-						case MOD: target = new CodeLiteral(s1%s2);
-							break;
-						case BIT_AND: target = new CodeLiteral(s1&s2);
-							break;
-						case BIT_OR: target = new CodeLiteral(s1|s2);
-							break;
-						case XOR: target = new CodeLiteral(s1^s2);
-							break;
-						case LSHIFT: target = new CodeLiteral(s1<<s2);
-							break;
-						case RSIGNEDSHIFT: target = new CodeLiteral(s1>>s2);
-							break;
-						case RUNSIGNEDSHIFT: target = new CodeLiteral(s1>>>s2);
-							break;
-					}
-					
 				} else { // Si el segundo operando es una variable
-					
-					String value2 = ((CodeVariable)source2).getValue();
-					
-					if (value2 != null) { //Si tiene un valor asignado
-						int s2 = Integer.parseInt(value2);
-					
+					String value = ((CodeVariable)source2).getValue();
+					if (value != null) { //Si tiene un valor asignado
+						int s2 = Integer.parseInt(value);
+						
 						switch (op) {
 						case ADD: target = new CodeLiteral(s1+s2);
 							break;
@@ -1193,31 +1181,104 @@ public class CodeGenerator implements CodeConstants {
 						case RUNSIGNEDSHIFT: target = new CodeLiteral(s1>>>s2);
 							break;
 						}
-						
 					} else { // Si no tiene un valor asignado
 						target = mc.getNewTemp();
-						CodeLiteral source = new CodeLiteral(s1);
-						code.addInstruction(new CodeInstruction(op,target,source,source2));
+						code.addInstruction(new CodeInstruction(op,target,source1,source2));
 						codelist.addInstructionList(code.getList());
 					}
 				}
-			} else  { // Si el primer operando no tiene un valor asignado
-				target = mc.getNewTemp();
 				
-				if (source2 instanceof CodeVariable) {
-					String value2 = ((CodeVariable)source2).getValue();	
-					if (value2 != null) {
-						source2 = new CodeLiteral(Integer.parseInt(value2));
+			} else { // Si el primer operando es una variable
+				String value1 = ((CodeVariable)source1).getValue();
+				
+				if (value1 != null) { // Si tiene valor
+					int s1 = Integer.parseInt(value1);
+					
+					if (source2 instanceof CodeLiteral) { // Si el segundo operando es un literal
+						int s2 = Integer.parseInt(source2.getDescription());
+				
+						switch (op) {
+							case ADD: target = new CodeLiteral(s1+s2);
+								break;
+							case SUB: target = new CodeLiteral(s1-s2);
+								break;
+							case MUL: target = new CodeLiteral(s1*s2);
+								break;
+							case DIV: target = new CodeLiteral(s1/s2);
+								break;
+							case MOD: target = new CodeLiteral(s1%s2);
+								break;
+							case BIT_AND: target = new CodeLiteral(s1&s2);
+								break;
+							case BIT_OR: target = new CodeLiteral(s1|s2);
+								break;
+							case XOR: target = new CodeLiteral(s1^s2);
+								break;
+							case LSHIFT: target = new CodeLiteral(s1<<s2);
+								break;
+							case RSIGNEDSHIFT: target = new CodeLiteral(s1>>s2);
+								break;
+							case RUNSIGNEDSHIFT: target = new CodeLiteral(s1>>>s2);
+								break;
+						}
+						
+					} else { // Si el segundo operando es una variable
+						
+						String value2 = ((CodeVariable)source2).getValue();
+						
+						if (value2 != null) { //Si tiene un valor asignado
+							int s2 = Integer.parseInt(value2);
+						
+							switch (op) {
+							case ADD: target = new CodeLiteral(s1+s2);
+								break;
+							case SUB: target = new CodeLiteral(s1-s2);
+								break;
+							case MUL: target = new CodeLiteral(s1*s2);
+								break;
+							case DIV: target = new CodeLiteral(s1/s2);
+								break;
+							case MOD: target = new CodeLiteral(s1%s2);
+								break;
+							case BIT_AND: target = new CodeLiteral(s1&s2);
+								break;
+							case BIT_OR: target = new CodeLiteral(s1|s2);
+								break;
+							case XOR: target = new CodeLiteral(s1^s2);
+								break;
+							case LSHIFT: target = new CodeLiteral(s1<<s2);
+								break;
+							case RSIGNEDSHIFT: target = new CodeLiteral(s1>>s2);
+								break;
+							case RUNSIGNEDSHIFT: target = new CodeLiteral(s1>>>s2);
+								break;
+							}
+							
+						} else { // Si no tiene un valor asignado
+							target = mc.getNewTemp();
+							CodeLiteral source = new CodeLiteral(s1);
+							code.addInstruction(new CodeInstruction(op,target,source,source2));
+							codelist.addInstructionList(code.getList());
+						}
 					}
+				} else  { // Si el primer operando no tiene un valor asignado
+					target = mc.getNewTemp();
+					
+					if (source2 instanceof CodeVariable) {
+						String value2 = ((CodeVariable)source2).getValue();	
+						if (value2 != null) {
+							source2 = new CodeLiteral(Integer.parseInt(value2));
+						}
+					}
+					
+					code.addInstruction(new CodeInstruction(op,target,source1,source2));
+					codelist.addInstructionList(code.getList());
 				}
 				
-				code.addInstruction(new CodeInstruction(op,target,source1,source2));
-				codelist.addInstructionList(code.getList());
 			}
 			
+			return target;	
 		}
-		
-		return target;		
 	}
 	
 	/**

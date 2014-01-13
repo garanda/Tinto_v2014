@@ -2,14 +2,22 @@
 library Main {
 
   void Main() {
-	int mayor = 7;
-	int menor;
-	int asdsde = mayor - menor;
+    int x,y,z,a,c,l,v;
+	y=2;
+	z=3;
 	
-	boolean a = true;
-	boolean b = false;
-	if (a&&b) menor = mayor;
-	boolean c = a && b;
+	x = y + z;
+	a = z + 2;
+	c = a;
+	x = c + a;
+	c = y + z;
+	v = y + z;
+	
+	v = doble(3);
+  }
+  
+  int doble(int a) {
+	return 2*a;
   }
   
 }

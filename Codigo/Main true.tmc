@@ -1,0 +1,26 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	assign local_1, 0x2                              ; y <- 2
+	assign local_2, 0x3                              ; z <- 3
+	assign local_0, 0x5                              ; x <- 5
+	assign local_3, 0x5                              ; a <- 5
+	assign local_4, 0x5                              ; c <- 5
+	assign local_0, 0xa                              ; x <- 10
+	assign local_4, 0x5                              ; c <- 5
+	assign local_6, 0x5                              ; v <- 5
+	precall 0x4
+	param 0x3, 0x0                                   ; param[0] <- 3
+	call tmp_0, Main_doble_0                         ; tmp_0 <- Main_doble_0()
+	assign local_6, tmp_0                            ; v <- tmp_0
+;
+;
+; %%%%%%%%%%%%%%%
+; Main_doble_0
+; %%%%%%%%%%%%%%%
+Main_doble_0:
+	mul tmp_0, 0x2, arg_0                            ; tmp_0 <- 2 * a
+	return tmp_0                                     ; return tmp_0
+;
+;

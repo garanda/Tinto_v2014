@@ -1,0 +1,7 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+mul_tmp_0
+mul_tmp_0-> 2
+mul_tmp_0-> a
+}

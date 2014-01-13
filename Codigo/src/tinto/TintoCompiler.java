@@ -60,7 +60,7 @@ import tinto.mips.ApplicationAssembler;
 import tinto.mips.LibraryAssembler;
 import tinto.parser.TintoHeaderParser;
 import tinto.parser.TintoParser;
-import Grafo.*;
+import Grafo.Grafo;
 
 /**
  * Clase que desarrolla el punto de entrada al compilador.
@@ -91,8 +91,10 @@ public class TintoCompiler {
 		// Genera el archivo "Main.s"
 		LibraryCodification maincodif = parse(mainfile);
 		if(maincodif == null) return; // Error en el fichero Main.tinto
+		
 		Grafo g = new Grafo();
 		g.generarGrafoInterferencia(maincodif);
+		
 		LibraryAssembler mainAssembler = new LibraryAssembler(maincodif);
 		mainAssembler.generateFile();
 		appendFile(stream,new File(workingdir,"Main.s"));
