@@ -93,7 +93,8 @@ public class TintoCompiler {
 		if(maincodif == null) return; // Error en el fichero Main.tinto
 		
 		Grafo g = new Grafo();
-		g.generarGrafoInterferencia(maincodif);
+		g.optimizar(maincodif);
+		//maincodif = g.optimizar(maincodif);
 		
 		LibraryAssembler mainAssembler = new LibraryAssembler(maincodif);
 		mainAssembler.generateFile();

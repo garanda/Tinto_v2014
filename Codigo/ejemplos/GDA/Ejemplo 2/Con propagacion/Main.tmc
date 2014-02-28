@@ -1,0 +1,14 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	add tmp_0, local_1, local_2                      ; tmp_0 <- b + c
+	assign local_0, tmp_0                            ; a <- tmp_0
+	sub tmp_1, local_1, local_3                      ; tmp_1 <- b - d
+	assign local_1, tmp_1                            ; b <- tmp_1
+	add tmp_2, local_2, local_3                      ; tmp_2 <- c + d
+	assign local_2, tmp_2                            ; c <- tmp_2
+	add tmp_3, local_1, local_2                      ; tmp_3 <- b + c
+	assign local_4, tmp_3                            ; e <- tmp_3
+;
+;

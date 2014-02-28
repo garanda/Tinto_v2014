@@ -8,6 +8,9 @@ public class NodoHojaGDA extends NodoGDA {
 	
 	private CodeAddress etiqueta;
 
+	public NodoHojaGDA() {
+	}
+	
 	public CodeAddress getEtiqueta() {
 		return etiqueta;
 	}
@@ -17,12 +20,14 @@ public class NodoHojaGDA extends NodoGDA {
 	}
 	
 	public void print(PrintStream stream) {
-		stream.println(etiqueta.getDescription());
+		stream.println();
 	}
 
 	@Override
 	public String toString() {
-		return etiqueta.getDescription();
+		String cadena = etiqueta.getDescription();
+		
+		return cadena;
 	}
 	
 	public boolean expresionComun(NodoGDA n) {

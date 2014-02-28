@@ -1,0 +1,13 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+B0 [label = "	add tmp_0, local_1, local_2
+	assign local_0, tmp_0
+	sub tmp_1, local_1, local_3
+	assign local_1, tmp_1
+	add tmp_2, local_2, local_3
+	assign local_2, tmp_2
+	add tmp_3, local_1, local_2
+	assign local_4, tmp_3
+"]
+}

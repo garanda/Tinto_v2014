@@ -1,0 +1,9 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+
+N14 [label = " Op: 
+ Var: Main_factorial_0_1"]
+N15 [label = " Op: return
+ Var: 1"]
+}

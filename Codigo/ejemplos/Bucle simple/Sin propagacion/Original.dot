@@ -1,0 +1,26 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+B0 [label = "	assign local_0, 0x0
+	assign local_1, 0x0
+"]
+B1 [label = "Main_Main_1:
+	jmplt Main_Main_2, local_1, 0xa
+"]
+B2 [label = "	jump Main_Main_3
+"]
+B3 [label = "Main_Main_2:
+	add tmp_0, local_0, 0x1
+	assign local_0, tmp_0
+	add tmp_1, local_1, 0x1
+	assign local_1, tmp_1
+	jump Main_Main_1
+"]
+B4 [label = "Main_Main_3:
+"]
+B0 -> B1
+B1 -> B2
+B1 -> B3
+B2 -> B4
+B3 -> B1
+}

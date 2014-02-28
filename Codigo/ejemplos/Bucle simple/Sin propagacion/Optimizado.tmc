@@ -1,0 +1,15 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	assign local_1, 0x0                              ; i <- 0
+Main_Main_1:
+	jmplt Main_Main_2, local_1, 0xa                  ; if(i < 10) jump Main_Main_2
+	jump Main_Main_3                                 ; jump Main_Main_3
+Main_Main_2:
+	add local_0, res0, 0x1                           ; res <- res0 + 1
+	add local_1, i0, 0x1                             ; i <- i0 + 1
+	jump Main_Main_1                                 ; jump Main_Main_1
+Main_Main_3:
+;
+;

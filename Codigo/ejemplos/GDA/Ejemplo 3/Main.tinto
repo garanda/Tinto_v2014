@@ -1,0 +1,15 @@
+
+library Main {
+
+  int Main() {
+    int a,b,c,d;
+	
+	a = b + c;
+	b = a - d;
+	c = b + c;
+	d = a - d;
+	
+	return c;
+  }
+  
+}

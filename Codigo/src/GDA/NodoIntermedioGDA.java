@@ -5,13 +5,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import tinto.code.CodeAddress;
-import tinto.code.CodeConstants;
 
 public class NodoIntermedioGDA extends NodoGDA {
 	
 	private ArrayList<CodeAddress> variables;
 	private ArrayList<NodoGDA> operandos;
 	private String etiqueta;
+	private int operator;
 
 	public NodoIntermedioGDA() {
 		variables = new ArrayList<CodeAddress>();
@@ -25,6 +25,14 @@ public class NodoIntermedioGDA extends NodoGDA {
 
 	public void setEtiqueta(String etiqueta) {
 		this.etiqueta = etiqueta;
+	}
+
+	public int getOperator() {
+		return operator;
+	}
+
+	public void setOperator(int operator) {
+		this.operator = operator;
 	}
 	
 	public void addOperando(NodoGDA var) {
@@ -68,27 +76,42 @@ public class NodoIntermedioGDA extends NodoGDA {
 		return false;
 	}
 	
+	@SuppressWarnings("static-access")
 	public void print(PrintStream stream) {
-		String cadena = etiqueta;
+		if (super.identificador == 0) {
+			super.numnodos++;
+			super.identificador = super.numnodos;
+		}
+		
+		String cadena = "N" + super.identificador + " [label = \" Op: "+ etiqueta + "\n Var:";
 		
 		for (int i=0; i<variables.size();i++) {
-			cadena += "_"+variables.get(i).getDescription();
+			cadena += " " + variables.get(i).getDescription();
 		}
+		
+		cadena += "\"]";
 		
 		stream.println(cadena);
 		
 		for (int i=0; i<operandos.size();i++) {
-			stream.println(cadena + "-> " + operandos.get(i).toString());
+			if (operandos.get(i) == null) {
+				stream.println("N" + super.identificador + "-> null");
+			} else {
+				stream.println("N" + super.identificador + "-> " + operandos.get(i).toString());
+				operandos.get(i).print(stream);
+			}
 		}
 	}
 
+	@SuppressWarnings("static-access")
 	@Override
 	public String toString() {
-		String cadena = etiqueta;
-		
-		for (int i=0; i<variables.size();i++) {
-			cadena += "_"+variables.get(i).getDescription();
+		if (super.identificador == 0) {
+			super.numnodos++;
+			super.identificador = super.numnodos;
 		}
+		
+		String cadena = "N" + super.identificador;
 		
 		return cadena;
 	}

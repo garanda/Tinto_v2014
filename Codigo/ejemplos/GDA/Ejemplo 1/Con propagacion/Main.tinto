@@ -1,0 +1,15 @@
+
+library Main {
+
+  void Main() {
+    int x=0,y=0,z=0,a=0,c=0,l=0,v=0;
+	
+	x = y + z;
+	a = z + l;
+	c = a;
+	c = y + z;
+	x = c + a;
+	v = y + z;
+  }
+  
+}

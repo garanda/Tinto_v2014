@@ -1,0 +1,12 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+N2 [label = " Op: 
+ Var: Main_Main_1"]
+N3 [label = " Op: jmplt
+ Var: Main_Main_2"]
+N3-> i
+
+N3-> 10
+
+}

@@ -1,21 +1,14 @@
 digraph pgn {
 rankdir=TD;
 node [shape = rectangle];
-assign_y
-assign_y-> 2
-assign_z
-assign_z-> 3
-add_tmp_0_tmp_3_c_tmp_4
-add_tmp_0_tmp_3_c_tmp_4-> assign_y
-add_tmp_0_tmp_3_c_tmp_4-> assign_z
-add_tmp_1_a
-add_tmp_1_a-> assign_z
-add_tmp_1_a-> 2
-add_tmp_2_x
-add_tmp_2_x-> add_tmp_1_a
-add_tmp_2_x-> add_tmp_1_a
-param_3
-param_3-> 0
-call_tmp_5_v
-call_tmp_5_v-> Main_doble_0
+N1 [label = " Op: assign
+ Var: res i"]
+N1-> 0
+
+N2 [label = " Op: jmpgt
+ Var: Main_Main_1"]
+N2-> 3
+
+N2-> 0
+
 }

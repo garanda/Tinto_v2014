@@ -1,0 +1,9 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	assign v0, 0x0                                   ; v0 <- 0
+	add local_6, v0, v0                              ; v <- v0 + v0
+	add local_0, local_6, local_6                    ; x <- v + v
+;
+;

@@ -1,0 +1,19 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	jmpgt Main_Main_1, 0x3, 0x0                      ; if(3 > 0) jump Main_Main_1
+	jump Main_Main_2                                 ; jump Main_Main_2
+Main_Main_1:
+	jump Main_Main_3                                 ; jump Main_Main_3
+Main_Main_2:
+Main_Main_3:
+Main_Main_4:
+	jmplt Main_Main_5, local_1, 0xa                  ; if(i < 10) jump Main_Main_5
+	jump Main_Main_6                                 ; jump Main_Main_6
+Main_Main_5:
+	add local_1, i0, 0x1                             ; i <- i0 + 1
+	jump Main_Main_4                                 ; jump Main_Main_4
+Main_Main_6:
+;
+;

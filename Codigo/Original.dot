@@ -1,25 +1,43 @@
 digraph pgn {
 rankdir=TD;
 node [shape = rectangle];
-B0 [label = "	assign local_1, 0x2
-	assign local_2, 0x3
-	add tmp_0, local_1, local_2
+B0 [label = "	assign local_0, 0x0
+	assign local_1, 0x0
+	jmpgt Main_Main_1, 0x3, 0x0
+"]
+B1 [label = "	jump Main_Main_2
+"]
+B2 [label = "Main_Main_1:
+	assign local_1, 0xf
+	jump Main_Main_3
+"]
+B3 [label = "Main_Main_2:
+	assign local_1, 0x14
+"]
+B4 [label = "Main_Main_3:
+"]
+B5 [label = "Main_Main_4:
+	jmplt Main_Main_5, local_1, 0xa
+"]
+B6 [label = "	jump Main_Main_6
+"]
+B7 [label = "Main_Main_5:
+	add tmp_0, local_0, 0x1
 	assign local_0, tmp_0
-	add tmp_1, local_2, 0x2
-	assign local_3, tmp_1
-	assign local_4, local_3
-	add tmp_2, local_4, local_3
-	assign local_0, tmp_2
-	add tmp_3, local_1, local_2
-	assign local_4, tmp_3
-	add tmp_4, local_1, local_2
-	assign local_6, tmp_4
-	precall 0x4
-	param 0x3, 0x0
-	call tmp_5, Main_doble_0
-	assign local_6, tmp_5
+	add tmp_1, local_1, 0x1
+	assign local_1, tmp_1
+	jump Main_Main_4
 "]
-B1 [label = "	mul tmp_0, 0x2, arg_0
-	return tmp_0
+B8 [label = "Main_Main_6:
 "]
+B0 -> B1
+B0 -> B2
+B1 -> B3
+B2 -> B4
+B3 -> B4
+B4 -> B5
+B5 -> B6
+B5 -> B7
+B6 -> B8
+B7 -> B5
 }

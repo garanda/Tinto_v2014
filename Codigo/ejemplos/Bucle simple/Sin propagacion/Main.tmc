@@ -1,0 +1,18 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	assign local_0, 0x0                              ; res <- 0
+	assign local_1, 0x0                              ; i <- 0
+Main_Main_1:
+	jmplt Main_Main_2, local_1, 0xa                  ; if(i < 10) jump Main_Main_2
+	jump Main_Main_3                                 ; jump Main_Main_3
+Main_Main_2:
+	add tmp_0, local_0, 0x1                          ; tmp_0 <- res + 1
+	assign local_0, tmp_0                            ; res <- tmp_0
+	add tmp_1, local_1, 0x1                          ; tmp_1 <- i + 1
+	assign local_1, tmp_1                            ; i <- tmp_1
+	jump Main_Main_1                                 ; jump Main_Main_1
+Main_Main_3:
+;
+;

@@ -2,30 +2,25 @@
 ; Main_Main
 ; %%%%%%%%%%%%%%%
 Main_Main:
-	assign local_1, 0x2                              ; y <- 2
-	assign local_2, 0x3                              ; z <- 3
-	add tmp_0, local_1, local_2                      ; tmp_0 <- y + z
-	assign local_0, tmp_0                            ; x <- tmp_0
-	add tmp_1, local_2, 0x2                          ; tmp_1 <- z + 2
-	assign local_3, tmp_1                            ; a <- tmp_1
-	assign local_4, local_3                          ; c <- a
-	add tmp_2, local_4, local_3                      ; tmp_2 <- c + a
-	assign local_0, tmp_2                            ; x <- tmp_2
-	add tmp_3, local_1, local_2                      ; tmp_3 <- y + z
-	assign local_4, tmp_3                            ; c <- tmp_3
-	add tmp_4, local_1, local_2                      ; tmp_4 <- y + z
-	assign local_6, tmp_4                            ; v <- tmp_4
-	precall 0x4
-	param 0x3, 0x0                                   ; param[0] <- 3
-	call tmp_5, Main_doble_0                         ; tmp_5 <- Main_doble_0()
-	assign local_6, tmp_5                            ; v <- tmp_5
-;
-;
-; %%%%%%%%%%%%%%%
-; Main_doble_0
-; %%%%%%%%%%%%%%%
-Main_doble_0:
-	mul tmp_0, 0x2, arg_0                            ; tmp_0 <- 2 * a
-	return tmp_0                                     ; return tmp_0
+	assign local_0, 0x0                              ; res <- 0
+	assign local_1, 0x0                              ; i <- 0
+	jmpgt Main_Main_1, 0x3, 0x0                      ; if(3 > 0) jump Main_Main_1
+	jump Main_Main_2                                 ; jump Main_Main_2
+Main_Main_1:
+	assign local_1, 0xf                              ; i <- 15
+	jump Main_Main_3                                 ; jump Main_Main_3
+Main_Main_2:
+	assign local_1, 0x14                             ; i <- 20
+Main_Main_3:
+Main_Main_4:
+	jmplt Main_Main_5, local_1, 0xa                  ; if(i < 10) jump Main_Main_5
+	jump Main_Main_6                                 ; jump Main_Main_6
+Main_Main_5:
+	add tmp_0, local_0, 0x1                          ; tmp_0 <- res + 1
+	assign local_0, tmp_0                            ; res <- tmp_0
+	add tmp_1, local_1, 0x1                          ; tmp_1 <- i + 1
+	assign local_1, tmp_1                            ; i <- tmp_1
+	jump Main_Main_4                                 ; jump Main_Main_4
+Main_Main_6:
 ;
 ;

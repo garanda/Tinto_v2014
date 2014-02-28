@@ -1,0 +1,18 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+B0 [label = "	assign local_0, 0x0
+	assign local_1, 0x0
+	assign local_2, 0x0
+	assign local_3, 0x0
+	assign local_4, 0x0
+	assign local_5, 0x0
+	assign local_6, 0x0
+	assign local_0, 0x0
+	assign local_3, 0x0
+	assign local_4, 0x0
+	assign local_4, 0x0
+	assign local_0, 0x0
+	assign local_6, 0x0
+"]
+}

@@ -1,0 +1,10 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	add local_0, b0, c0                              ; a <- b0 + c0
+	sub local_1, b0, local_3                         ; b <- b0 - d
+	add local_2, c0, local_3                         ; c <- c0 + d
+	add local_4, local_1, local_2                    ; e <- b + c
+;
+;

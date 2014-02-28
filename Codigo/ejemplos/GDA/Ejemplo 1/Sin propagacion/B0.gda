@@ -1,0 +1,32 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+N1 [label = " Op: add
+ Var: tmp_3 x"]
+N1-> N2
+N2 [label = " Op: add
+ Var: tmp_0 tmp_1 a tmp_2 c c1 x1 tmp_4 v"]
+N2-> N3
+N3 [label = " Op: assign
+ Var: y z l x0 a0 c0 v0"]
+N3-> 0
+
+N2-> N3
+N3 [label = " Op: assign
+ Var: y z l x0 a0 c0 v0"]
+N3-> 0
+
+N1-> N2
+N2 [label = " Op: add
+ Var: tmp_0 tmp_1 a tmp_2 c c1 x1 tmp_4 v"]
+N2-> N3
+N3 [label = " Op: assign
+ Var: y z l x0 a0 c0 v0"]
+N3-> 0
+
+N2-> N3
+N3 [label = " Op: assign
+ Var: y z l x0 a0 c0 v0"]
+N3-> 0
+
+}

@@ -1,0 +1,7 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+
+N6 [label = " Op: jump
+ Var: Main_factorial_0_2"]
+}

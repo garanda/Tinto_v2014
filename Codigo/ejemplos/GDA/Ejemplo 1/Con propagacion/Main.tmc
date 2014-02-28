@@ -1,0 +1,19 @@
+; %%%%%%%%%%%%%%%
+; Main_Main
+; %%%%%%%%%%%%%%%
+Main_Main:
+	assign local_0, 0x0                              ; x <- 0
+	assign local_1, 0x0                              ; y <- 0
+	assign local_2, 0x0                              ; z <- 0
+	assign local_3, 0x0                              ; a <- 0
+	assign local_4, 0x0                              ; c <- 0
+	assign local_5, 0x0                              ; l <- 0
+	assign local_6, 0x0                              ; v <- 0
+	assign local_0, 0x0                              ; x <- 0
+	assign local_3, 0x0                              ; a <- 0
+	assign local_4, 0x0                              ; c <- 0
+	assign local_4, 0x0                              ; c <- 0
+	assign local_0, 0x0                              ; x <- 0
+	assign local_6, 0x0                              ; v <- 0
+;
+;

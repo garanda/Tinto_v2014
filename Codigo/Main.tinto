@@ -2,22 +2,18 @@
 library Main {
 
   void Main() {
-    int x,y,z,a,c,l,v;
-	y=2;
-	z=3;
+	int res = 0;
+	int i = 0;
 	
-	x = y + z;
-	a = z + 2;
-	c = a;
-	x = c + a;
-	c = y + z;
-	v = y + z;
+	if (3 > 0)
+		i = 15;
+	else
+		i = 20;
 	
-	v = doble(3);
+	while (i < 10) {
+		res = res + 1;
+		i = i+1;		
+	}
+	
   }
-  
-  int doble(int a) {
-	return 2*a;
-  }
-  
 }

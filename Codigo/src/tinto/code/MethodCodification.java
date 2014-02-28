@@ -236,11 +236,17 @@ public class MethodCodification implements CodeConstants {
 		return var;
 	}
 	
+	public Variable[] getVariableArguments() {
+		Variable[] devolver = new Variable[arg.length];
+		System.arraycopy(astvar, 0, devolver, 0, arg.length);
+		return devolver;
+	}
+	
 	/**
 	 * Asigna todas las instrucciones 
 	 * @param list
 	 */
-	public void setInstructionList(CodeInstructionList list) {
+ 	public void setInstructionList(CodeInstructionList list) {
 		this.list = list;
 	}
 	

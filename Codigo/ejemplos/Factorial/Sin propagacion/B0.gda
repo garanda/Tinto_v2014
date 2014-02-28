@@ -1,0 +1,19 @@
+digraph pgn {
+rankdir=TD;
+node [shape = rectangle];
+N1 [label = " Op: precall
+ Var: 4"]
+N2 [label = " Op: param
+ Var:"]
+N2-> 0
+
+N2-> N3
+N3 [label = " Op: assign
+ Var: a"]
+N3-> 5
+
+N4 [label = " Op: call
+ Var: tmp_0 f"]
+N4-> Main_factorial_0
+
+}
