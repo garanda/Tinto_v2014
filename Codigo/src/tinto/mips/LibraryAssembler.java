@@ -52,6 +52,7 @@ package tinto.mips;
 
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.List;
 
 import tinto.code.MethodCodification;
 import tinto.code.LibraryCodification;
@@ -115,4 +116,27 @@ public class LibraryAssembler  {
 		stream.println("# All rights reserved.                                             ");
 		stream.println("#------------------------------------------------------------------");
 	}
+	
+	/**
+	 * Genera el fichero ensamblador volcandolo en un stream
+	 */
+	public void addFile(List ps) {
+		for(int i=0; i<method.length; i++) {
+			if (method[i] != null)
+				method[i].print(ps);
+		}
+	}
+	
+
+	/**
+	 * Genera el fichero ensamblador volcandolo en un stream
+	 */
+	public void addFile(PrintStream ps) {
+		for(int i=0; i<method.length; i++) {
+			if (method[i] != null)
+				method[i].print(ps);
+		}
+	}
+	
+
 }

@@ -70,6 +70,11 @@ public class LibraryCodification  {
 	 */
 	private String[] imported;
 	
+	
+	private boolean Sistema;
+
+	
+	
 	/**
 	 * Lista de métodos de la clase
 	 */
@@ -83,6 +88,7 @@ public class LibraryCodification  {
 		this.name = name;
 		this.imported = imported;
 		this.method = new MethodCodification[methodcount];
+		this.Sistema = false;
 	}
 
 	/**
@@ -132,5 +138,20 @@ public class LibraryCodification  {
 			stream.println(";");
 			stream.println(";");
 		}
+	}
+
+
+	/**
+	 * @return the sistema
+	 */
+	public boolean isSistema() {
+		return Sistema;
+	}
+
+	/**
+	 * @param sistema the sistema to set
+	 */
+	public void setSistema(boolean sistema) {
+		Sistema = sistema;
 	}
 }

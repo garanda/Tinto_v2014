@@ -52,6 +52,8 @@ package tinto.mips;
 
 import java.io.PrintStream;
 import tinto.code.*;
+
+import java.util.List;
 import java.util.Vector;
 import java.util.Stack;
 
@@ -229,6 +231,25 @@ public class MethodAssembler {
 		}
 	}
 	
+	/**
+	 * Escribe el código completo del método sobre un flujo
+	 * 
+	 * @return
+	 */
+	public void print(List stream) {
+		stream.add("#------------------------------------------------------------------");
+		stream.add("# "+label);
+		stream.add("#------------------------------------------------------------------");
+		stream.add("\t.globl\t"+label);
+		stream.add("\t.ent\t"+label);
+		
+		for(int i=0; i<list.length; i++) 
+			stream.add(list[i].getAssembler());
+
+		stream.add("\t.end\t"+label);
+	}
+	
+
 	//----------------------------------------------------------------//
 	//                    Traducción de las etiquetas                 //
 	//----------------------------------------------------------------//

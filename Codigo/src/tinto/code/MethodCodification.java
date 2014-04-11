@@ -99,6 +99,11 @@ public class MethodCodification implements CodeConstants {
 	 * Lista de instrucciones
 	 */
 	private CodeInstructionList list;
+	
+	/**
+	 * Bandera de visitado
+	 */
+	private boolean visited;
 
 	/**
 	 * 
@@ -255,6 +260,20 @@ public class MethodCodification implements CodeConstants {
 		stream.println(beginInst);
 		CodeInstruction[] instlist = list.getList();
 		for(int i=0; i<instlist.length; i++) stream.println(instlist[i]);
+	}
+
+	/**
+	 * @return the visited
+	 */
+	public boolean isVisited() {
+		return visited;
+	}
+
+	/**
+	 * @param visited the visited to set
+	 */
+	public void setVisited(boolean visited) {
+		this.visited = visited;
 	}
 	
 }

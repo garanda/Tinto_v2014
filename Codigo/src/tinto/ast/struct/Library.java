@@ -78,6 +78,11 @@ public class Library {
 	 */
 	private Vector<Method> method;
 
+	/**
+	 * Bandera para Sistema
+	 */
+	private boolean System;
+
 	//----------------------------------------------------------------//
 	//                            Constructores                       //
 	//----------------------------------------------------------------//
@@ -92,6 +97,7 @@ public class Library {
 		this.name = name.toString();
 		this.imported = new Vector<String>();
 		this.method = new Vector<Method>();
+		setSystem(false);
 	}
 	
 	//----------------------------------------------------------------//
@@ -175,5 +181,19 @@ public class Library {
 	 */
 	public boolean isImported(String importedname) {
 		return imported.contains(importedname);
+	}
+
+	/**
+	 * @return the system
+	 */
+	public boolean isSystem() {
+		return System;
+	}
+
+	/**
+	 * @param system the system to set
+	 */
+	public void setSystem(boolean system) {
+		System = system;
 	}
 }

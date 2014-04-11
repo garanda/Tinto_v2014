@@ -70,59 +70,96 @@ import Grafo.*;
  */
 public class TintoCompiler {
 
+	// TODO Poner la barra del sistema operativo
+	public static final String BARRA = "/";
+	
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
 		
+		
+//		System.out.println(System.getProperty("user.dir"));
+		
+		if (args.length == 0) {
+			System.out.println("Error: Debe indicar un fichero.");
+			System.exit(-1);
+		}
+		
+		
+//		String fichero = (args.length == 0? "Main.tinto" : args[0] );
+//
+//		File f = new File(fichero);
+//		
+//		System.out.println(f.getAbsolutePath());
+//		System.out.println(f.getPath().substring(0,f.getPath().lastIndexOf(BARRA)+1));
+//		
+//		System.out.println(f.getName());
+		
+		
+		
+		
 		// Busca el archivo "Main.tinto"
-		String path = (args.length == 0? System.getProperty("user.dir") : args[0] );
-		File workingdir = new File(path);
-		File mainfile = new File(workingdir,"Main.tinto");
-		if(!mainfile.exists()) return;
+		String path = args[0];
+		File mainfile = new File(path);
+		if(!mainfile.exists()) { 
+			System.out.println("Error: El fichero no existe");
+			return;
+		}
+		String workingdir = mainfile.getPath().substring(0, mainfile.getPath().lastIndexOf(mainfile.getName()));
+		String mainfileName = mainfile.getName().substring(0,mainfile.getName().lastIndexOf("."));
+		
+		
+		
 		
 		// Genera el archivo de salida del compilador
 		FileOutputStream fos;
-		try{ fos = new FileOutputStream(new File(workingdir,"Application.s"));}
-		catch(Exception ex) { ex.printStackTrace(); return; }
+		try{ 
+			fos = new FileOutputStream(new File(workingdir,mainfileName+".s"));}
+		catch(Exception ex) { 
+			ex.printStackTrace(); return; 
+		}
 		PrintStream stream = new PrintStream(fos);
-		ApplicationAssembler.printCommonCode(stream);
+		ApplicationAssembler.printCommonCode(stream);		
 		
 		// Genera el archivo "Main.s"
 		LibraryCodification maincodif = parse(mainfile);
+
 		if(maincodif == null) return; // Error en el fichero Main.tinto
 		Grafo g = new Grafo();
 		g.generarGrafoInterferencia(maincodif);
+		
 		LibraryAssembler mainAssembler = new LibraryAssembler(maincodif);
 		mainAssembler.generateFile();
-		appendFile(stream,new File(workingdir,"Main.s"));
+		appendFile(stream,new File(workingdir,mainfileName+".s"));
 		
-		// Genera una pila con las bibliotecas importadas por "Main.tinto"
-		String[] imported = maincodif.getImported();
-		Stack<String> stack = new Stack<String>();
-		for(int i=0; i<imported.length; i++) stack.push(imported[i]);
-		Vector<String> visited = new Vector<String>();
-		visited.add("Main");
 		
-		// Compila recursivamente las bibliotecas importadas por la clase Main
-		while(!stack.isEmpty()) {
-			String libname = (String) stack.pop();
-			if(visited.contains(libname)) continue;
-			File file = new File(workingdir,libname+".s");
-			if(file.exists()) appendFile(stream,file);
-			else {
-				File libSource = new File(workingdir,libname+".tinto");
-				LibraryCodification libCodif = parse(libSource);
-				LibraryAssembler libAssembler = new LibraryAssembler(libCodif);
-				libAssembler.generateFile();
-				appendFile(stream,new File(workingdir,libname+".s"));
-				String[] moreimp = libCodif.getImported();
-				for(int i=0; i<moreimp.length; i++) stack.push(moreimp[i]);				
-			}
-			visited.add(libname);
-		}
-		
-		stream.close();
+//		// Genera una pila con las bibliotecas importadas por "Main.tinto"
+//		String[] imported = maincodif.getImported();
+//		Stack<String> stack = new Stack<String>();
+//		for(int i=0; i<imported.length; i++) stack.push(imported[i]);
+//		Vector<String> visited = new Vector<String>();
+//		visited.add("Main");
+//		
+//		// Compila recursivamente las bibliotecas importadas por la clase Main
+//		while(!stack.isEmpty()) {
+//			String libname = (String) stack.pop();
+//			if(visited.contains(libname)) continue;
+//			File file = new File(workingdir,libname+".s");
+//			if(file.exists()) appendFile(stream,file);
+//			else {
+//				File libSource = new File(workingdir,libname+".tinto");
+//				LibraryCodification libCodif = parse(libSource);
+//				LibraryAssembler libAssembler = new LibraryAssembler(libCodif);
+//				libAssembler.generateFile();
+//				appendFile(stream,new File(workingdir,libname+".s"));
+//				String[] moreimp = libCodif.getImported();
+//				for(int i=0; i<moreimp.length; i++) stack.push(moreimp[i]);				
+//			}
+//			visited.add(libname);
+//		}
+//		
+//		stream.close();
 	}
 	
 	/**
@@ -190,8 +227,7 @@ public class TintoCompiler {
 	 * @throws SintaxException
 	 * @throws IOException
 	 */
-	private static Hashtable<String,Library> generateImportedLibraries(Library library) 
-	throws IOException {
+	private static Hashtable<String,Library> generateImportedLibraries(Library library)  throws IOException {
  		String[] imported_name = library.getImported();
  		Hashtable<String,Library> hash = new Hashtable<String,Library>();
  		hash.put(library.getName(),library);
@@ -203,12 +239,20 @@ public class TintoCompiler {
  			String libname = (String) stack.pop();
  			if(hash.containsKey(libname)) continue;
  			
- 			FileInputStream fis = new FileInputStream(libname+".tinto");
- 			TintoHeaderParser header = new TintoHeaderParser(fis);
- 			Library lib = header.parse(libname);
- 			hash.put(libname,lib);
- 			String[] imp = lib.getImported();
- 			for(int i=0; i<imp.length; i++) stack.push(imp[i]);
+ 			File f = new File(libname+".tinto");
+ 			if (!f.exists()) {
+ 				Library lib = new Library(libname);
+// 				((Object) lib).setSystem(true);
+ 				lib.setSystem(true);
+ 				hash.put(libname,lib );
+ 			} else {
+	 			FileInputStream fis = new FileInputStream(libname+".tinto");
+	 			TintoHeaderParser header = new TintoHeaderParser(fis);
+	 			Library lib = header.parse(libname);
+	 			hash.put(libname,lib);
+	 			String[] imp = lib.getImported();
+	 			for(int i=0; i<imp.length; i++) stack.push(imp[i]);
+ 			}
  		}
  		
  		return hash;
